@@ -82,10 +82,9 @@ async def upload_pdf(file: UploadFile = File(...)):
 async def slack_events(req: Request):
     body = await req.json()
 
-    # Verificación inicial cuando configuras el endpoint en Slack
+    # ⚠️ Slack envía un "challenge" al verificar la URL
     if "challenge" in body:
         return {"challenge": body["challenge"]}
 
-    # Aquí podrías procesar otros eventos más adelante
     print("Evento recibido de Slack:", body)
     return {"ok": True}
