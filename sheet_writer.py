@@ -8,6 +8,7 @@ def escribir_en_google_sheets(data):
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds_dict = json.loads(os.getenv("GOOGLE_CREDS"))
     credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+
     client = gspread.authorize(credentials)
 
     try:
