@@ -5,6 +5,9 @@ from google.oauth2.service_account import Credentials
 
 
 def escribir_en_google_sheets(data):
+    print("📦 DATA RECIBIDA EN sheet_writer.py:")
+print(json.dumps(data, indent=2))
+
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds_dict = json.loads(os.getenv("GOOGLE_CREDS"))
     credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
