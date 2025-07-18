@@ -5,6 +5,8 @@ from sheet_writer import escribir_en_google_sheets
 import fitz  # PyMuPDF
 import re
 import traceback
+import requests
+
 
 app = FastAPI(
     title="PDF to Google Sheets API",
@@ -20,6 +22,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/XXX/YYY/ZZZ"  # ← reemplaza esta línea
+
 
 @app.post("/upload/")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -49,6 +54,23 @@ async def upload_pdf(file: UploadFile = File(...)):
         escribir_en_google_sheets(data)
         print("Datos escritos en Sheets")
 
+        # Construir y enviar mensaje a Slack
+        nombre = data["facturacion"].get("1A", "Cliente desconocido")
+        fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
+        fecha_fin = data["facturacion"].get("4A", "Fecha fin")
+        servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
+        mensaje = (
+            f"Servicios detectados correctamente para {nombre}\n"
+            f"Fecha de inicio: {fecha_inicio}\n"
+            f"Fecha de fin: {fecha_fin}\n\n"
+            f"{servicios}\n\n"
+            f"Gracias. Enviando la información al equipo de finanzas."
+        )
+
+        requests.post(SLACK_WEBHOOK_URL, json={"text": mensaje})
+
+
+        
         return data
 
     except Exception as e:
