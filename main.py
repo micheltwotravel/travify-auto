@@ -62,6 +62,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         # Construir y enviar mensaje a Slack
        # Construir mensaje
+# Construir mensaje
 nombre = data["facturacion"].get("1A", "Cliente desconocido")
 fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
 fecha_fin = data["facturacion"].get("4A", "Fecha fin")
@@ -74,11 +75,14 @@ mensaje = (
     f"Gracias. Enviando la información al equipo de finanzas."
 )
 
-# Enviar mensaje (reutiliza el endpoint como en el otro handler si quieres)
-# Si estás usando esto como endpoint de prueba sin canal, puedes omitir el envío aquí
-print(mensaje)
-
-
+# Enviar mensaje a Slack (desde /upload/)
+channel_id = "C094NE421NV"
+headers = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
+async with aiohttp.ClientSession() as session:
+    await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
+        "channel": channel_id,
+        "text": mensaje
+    })
 
         
         return data
