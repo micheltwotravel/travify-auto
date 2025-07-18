@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sheet_writer import escribir_en_google_sheets
+from fastapi import Request
 
 import fitz  # PyMuPDF
 import re
@@ -76,3 +77,15 @@ async def upload_pdf(file: UploadFile = File(...)):
     except Exception as e:
         print("ERROR:", traceback.format_exc())
         return {"error": traceback.format_exc()}
+
+@app.post("/slack/events")
+async def slack_events(req: Request):
+    body = await req.json()
+
+    # Verificación inicial cuando configuras el endpoint en Slack
+    if "challenge" in body:
+        return {"challenge": body["challenge"]}
+
+    # Aquí podrías procesar otros eventos más adelante
+    print("Evento recibido de Slack:", body)
+    return {"ok": True}
