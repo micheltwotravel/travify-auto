@@ -60,7 +60,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         escribir_en_google_sheets(data)
         print("Datos escritos en Sheets")
 
-        # Construir mensaje
+        # ✅ ESTE BLOQUE DEBE IR DENTRO DEL TRY
         nombre = data["facturacion"].get("1A", "Cliente desconocido")
         fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
         fecha_fin = data["facturacion"].get("4A", "Fecha fin")
