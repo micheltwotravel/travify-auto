@@ -61,19 +61,23 @@ async def upload_pdf(file: UploadFile = File(...)):
         print("Datos escritos en Sheets")
 
         # Construir y enviar mensaje a Slack
-        nombre = data["facturacion"].get("1A", "Cliente desconocido")
-        fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
-        fecha_fin = data["facturacion"].get("4A", "Fecha fin")
-        servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
-        mensaje = (
-            f"Servicios detectados correctamente para {nombre}\n"
-            f"Fecha de inicio: {fecha_inicio}\n"
-            f"Fecha de fin: {fecha_fin}\n\n"
-            f"{servicios}\n\n"
-            f"Gracias. Enviando la información al equipo de finanzas."
-        )
+       # Construir mensaje
+nombre = data["facturacion"].get("1A", "Cliente desconocido")
+fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
+fecha_fin = data["facturacion"].get("4A", "Fecha fin")
+servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
+mensaje = (
+    f"Servicios detectados correctamente para {nombre}\n"
+    f"Fecha de inicio: {fecha_inicio}\n"
+    f"Fecha de fin: {fecha_fin}\n\n"
+    f"{servicios}\n\n"
+    f"Gracias. Enviando la información al equipo de finanzas."
+)
 
-        requests.post(SLACK_WEBHOOK_URL, json={"text": mensaje})
+# Enviar mensaje (reutiliza el endpoint como en el otro handler si quieres)
+# Si estás usando esto como endpoint de prueba sin canal, puedes omitir el envío aquí
+print(mensaje)
+
 
 
         
