@@ -127,9 +127,8 @@ async def slack_events(req: Request):
 
         doc.close()
 
-        codigos = re.findall(r"\[(\w{2}\d{3})]\[(\d+)]", texto)
-facturacion = re.findall(r"\[(\dA)]\[(.*?)\]", texto)
-
+                codigos = re.findall(r"\[(\w{2}\d{3})\]\[(\d+)\]", texto)
+        facturacion = re.findall(r"\[(\w{2})\]\[(.*?)\]", texto)
 
         data = {
             "codigos_detectados": [{"codigo": c, "valor": int(v)} for c, v in codigos],
@@ -157,5 +156,6 @@ facturacion = re.findall(r"\[(\dA)]\[(.*?)\]", texto)
                 "channel": channel_id,
                 "text": mensaje
             })
+
 
     return {"ok": True}
