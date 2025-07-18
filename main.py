@@ -123,10 +123,13 @@ async def slack_events(req: Request):
         texto = ""
         for page in doc:
             texto += page.get_text()
+            print("🧾 TEXTO EXTRAÍDO:\n", texto[:1000])  # Ver los primeros 1000 caracteres
+
         doc.close()
 
-        codigos = re.findall(r"\[(\w{2}\d{3})\]\[(\d+)\]", texto)
-        facturacion = re.findall(r"\[(\w{2})\]\[([^\]]+)\]", texto)
+        codigos = re.findall(r"\[(\w{2}\d{3})]\[(\d+)]", texto)
+facturacion = re.findall(r"\[(\dA)]\[(.*?)\]", texto)
+
 
         data = {
             "codigos_detectados": [{"codigo": c, "valor": int(v)} for c, v in codigos],
