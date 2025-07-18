@@ -60,36 +60,34 @@ async def upload_pdf(file: UploadFile = File(...)):
         escribir_en_google_sheets(data)
         print("Datos escritos en Sheets")
 
-        # Construir y enviar mensaje a Slack
-       # Construir mensaje
-# Construir mensaje
-nombre = data["facturacion"].get("1A", "Cliente desconocido")
-fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
-fecha_fin = data["facturacion"].get("4A", "Fecha fin")
-servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
-mensaje = (
-    f"Servicios detectados correctamente para {nombre}\n"
-    f"Fecha de inicio: {fecha_inicio}\n"
-    f"Fecha de fin: {fecha_fin}\n\n"
-    f"{servicios}\n\n"
-    f"Gracias. Enviando la información al equipo de finanzas."
-)
+        # Construir mensaje
+        nombre = data["facturacion"].get("1A", "Cliente desconocido")
+        fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
+        fecha_fin = data["facturacion"].get("4A", "Fecha fin")
+        servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
+        mensaje = (
+            f"Servicios detectados correctamente para {nombre}\n"
+            f"Fecha de inicio: {fecha_inicio}\n"
+            f"Fecha de fin: {fecha_fin}\n\n"
+            f"{servicios}\n\n"
+            f"Gracias. Enviando la información al equipo de finanzas."
+        )
 
-# Enviar mensaje a Slack (desde /upload/)
-channel_id = "C094NE421NV"
-headers = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
-async with aiohttp.ClientSession() as session:
-    await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
-        "channel": channel_id,
-        "text": mensaje
-    })
+        # Enviar mensaje a Slack
+        channel_id = "C094NE421NV"
+        headers = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
+        async with aiohttp.ClientSession() as session:
+            await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
+                "channel": channel_id,
+                "text": mensaje
+            })
 
-        
         return data
 
     except Exception as e:
         print("ERROR:", traceback.format_exc())
         return {"error": traceback.format_exc()}
+
 
 @app.post("/slack/events")
 async def slack_events(req: Request):
