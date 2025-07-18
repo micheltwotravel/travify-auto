@@ -7,6 +7,8 @@ import fitz  # PyMuPDF
 import re
 import traceback
 import requests
+import os
+
 
 
 app = FastAPI(
@@ -24,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/XXX/YYY/ZZZ"  # ← reemplaza esta línea
+SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 
 
 @app.post("/upload/")
