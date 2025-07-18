@@ -7,3 +7,5 @@ google-auth
 google-auth-oauthlib
 google-auth-httplib2
 gspread
+slack_sdk
+requests
