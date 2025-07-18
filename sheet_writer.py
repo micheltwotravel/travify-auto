@@ -1,6 +1,8 @@
 import os
 import json
+import gspread
 from google.oauth2.service_account import Credentials
+
 
 def escribir_en_google_sheets(data):
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
