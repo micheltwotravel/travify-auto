@@ -10,3 +10,4 @@ gspread
 slack_sdk
 requests
 aiohttp
+python-dotenv
