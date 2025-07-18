@@ -6,7 +6,7 @@ from google.oauth2.service_account import Credentials
 
 def escribir_en_google_sheets(data):
     print("📦 DATA RECIBIDA EN sheet_writer.py:")
-    print(json.dumps(data, indent=2))  # ✅ ESTA LÍNEA ESTABA MAL INDENTADA
+    print(json.dumps(data, indent=2))
 
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds_dict = json.loads(os.getenv("GOOGLE_CREDS"))
@@ -36,6 +36,4 @@ def escribir_en_google_sheets(data):
         print("✅ Todos los datos fueron escritos correctamente.")
 
     except Exception as e:
-        print(f"❌ Error al escribir en Google Sheets: {e}")
-
         print(f"❌ Error al escribir en Google Sheets: {e}")
