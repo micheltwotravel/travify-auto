@@ -103,13 +103,17 @@ async def slack_events(req: Request):
             async with session.get(file_url, headers=headers) as resp:
                 if resp.status == 200:
                     pdf_data = await resp.read()
+
+                    print("Cabecera del archivo descargado:", pdf_data[:10])
+                    if not pdf_data.startswith(b'%PDF'):
+                        print("❌ El archivo descargado NO es un PDF válido.")
+                        return {"error": "Archivo no es PDF"}
+
                     with open("temp.pdf", "wb") as f:
                         f.write(pdf_data)
 
         # Procesar como en el endpoint /upload
         texto = extraer_texto_ocr("temp.pdf")
-
-
         print("📄 TEXTO COMPLETO EXTRAÍDO:\n", texto)
         
         codigos, facturacion = extraer_codigos_y_factura(texto)
