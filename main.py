@@ -165,6 +165,8 @@ async def slack_events(req: Request):
                 }, json={
                     "channel": channel_id,
                     "text": mensaje
+                    })
+                return {"ok": True}
 
 @app.get("/")
 def root():
