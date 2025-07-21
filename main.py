@@ -2,6 +2,8 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sheet_writer import escribir_en_google_sheets
 from fastapi import Request
+from pdf2image import convert_from_path
+import pytesseract
 
 
 import fitz  # PyMuPDF
@@ -40,11 +42,8 @@ async def upload_pdf(file: UploadFile = File(...)):
             f.write(contents)
         print("PDF guardado")
 
-        doc = fitz.open("temp.pdf")
-        texto = ""
-        for page in doc:
-            texto += page.get_text()
-        doc.close()
+        texto = extraer_texto_ocr("temp.pdf")
+
         print("Texto extraído")
 
             
@@ -108,12 +107,8 @@ async def slack_events(req: Request):
                         f.write(pdf_data)
 
         # Procesar como en el endpoint /upload
-        doc = fitz.open("temp.pdf")
-        texto = ""
-        for page in doc:
-            texto += page.get_text()
-        print("📄 TEXTO EXTRAÍDO:\n", texto[:1000])
-        doc.close()
+        texto = extraer_texto_ocr("temp.pdf")
+
 
         print("📄 TEXTO COMPLETO EXTRAÍDO:\n", texto)
         
@@ -167,3 +162,14 @@ def extraer_codigos_y_factura(texto):
 
     return codigos, facturacion
 
+def extraer_texto_ocr(pdf_path):
+    from pdf2image import convert_from_path
+    import pytesseract
+
+    pages = convert_from_path(pdf_path)
+    texto_total = ""
+    for i, page in enumerate(pages):
+        texto = pytesseract.image_to_string(page, lang="eng")
+        print(f"📄 Texto OCR página {i+1}:\n{texto[:500]}")
+        texto_total += texto + "\n"
+    return texto_total
