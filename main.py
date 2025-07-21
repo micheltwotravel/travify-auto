@@ -53,23 +53,20 @@ def extraer_codigos_y_factura(texto):
         facturacion[campo] = valor
     return codigos, facturacion
 
-def extraer_texto_pdf(pdf_path):
+def extraer_texto_pdf_bytes(pdf_bytes):
     texto_total = ""
-    doc = fitz.open(pdf_path)
-    for i, page in enumerate(doc):
-        texto = page.get_text()
-        print(f"📄 Texto página {i+1}:", texto[:500])
-        texto_total += texto + "\n"
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+        for i, page in enumerate(doc):
+            texto = page.get_text()
+            print(f"📄 Texto página {i+1}:", texto[:500])
+            texto_total += texto + "\n"
     return texto_total
 
 @app.post("/upload/")
 async def upload_pdf(file: UploadFile = File(...)):
     try:
         contents = await file.read()
-        with open("temp.pdf", "wb") as f:
-            f.write(contents)
-
-        texto = extraer_texto_pdf("temp.pdf")
+        texto = extraer_texto_pdf_bytes(contents)
         codigos, facturacion = extraer_codigos_y_factura(texto)
 
         data = {
@@ -130,10 +127,7 @@ async def slack_events(req: Request):
                     })
                     return {"error": "Archivo no es PDF"}
 
-                with open("temp.pdf", "wb") as f:
-                    f.write(pdf_data)
-
-                texto = extraer_texto_pdf("temp.pdf")
+                texto = extraer_texto_pdf_bytes(pdf_data)
                 codigos, facturacion = extraer_codigos_y_factura(texto)
 
                 data = {
