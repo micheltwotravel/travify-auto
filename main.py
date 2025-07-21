@@ -47,8 +47,8 @@ async def upload_pdf(file: UploadFile = File(...)):
         doc.close()
         print("Texto extraído")
 
-        codigos = re.findall(r"\[(\w{2}\d{3})\]\[(\d+)\]", texto)
-        facturacion = re.findall(r"\[(\w{2})\]\[([^\]]+)\]", texto)
+        codigos = re.findall(r"\[([A-Z]{2}\d{3})\]\s*\[?(\d+)\]?", texto)
+        facturacion = re.findall(r"\[(\w{1,2})\]\[(.*?)\]", texto)
         print("Códigos y facturación extraídos")
 
         data = {
