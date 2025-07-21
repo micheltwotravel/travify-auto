@@ -88,7 +88,6 @@ async def upload_pdf(file: UploadFile = File(...)):
         print("ERROR:", traceback.format_exc())
         return {"error": traceback.format_exc()}
 
-
 @app.post("/slack/events")
 async def slack_events(req: Request):
     body = await req.json()
@@ -121,15 +120,12 @@ async def slack_events(req: Request):
         import fitz
         doc = fitz.open("temp.pdf")
         texto = ""
-                for page in doc:
+        for page in doc:
             texto += page.get_text()
-            print("📄 TEXTO EXTRAÍDO:\n", texto[:1000])  # Ver los primeros 1000 caracteres
-
+        print("📄 TEXTO EXTRAÍDO:\n", texto[:1000])  # Ver los primeros 1000 caracteres
         doc.close()
 
-
         codigos = re.findall(r"\[(\w{2}\d{3})\]\[(\d+)\]", texto)
-
         facturacion = re.findall(r"\[(\w{2})\]\[(.*?)\]", texto)
 
         data = {
@@ -158,6 +154,5 @@ async def slack_events(req: Request):
                 "channel": channel_id,
                 "text": mensaje
             })
-
 
     return {"ok": True}
