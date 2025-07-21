@@ -1,7 +1,8 @@
 import os
 import requests
 
-QUICKBOOKS_BASE_URL = "https://quickbooks.api.intuit.com/v3/company/YOUR_COMPANY_ID"
+# Reemplaza este ID con el tuyo real de QuickBooks
+QUICKBOOKS_BASE_URL = "https://quickbooks.api.intuit.com/v3/company/1234567890"
 ACCESS_TOKEN = os.getenv("QUICKBOOKS_ACCESS_TOKEN")  # Usa Render Secret o .env
 
 HEADERS = {
@@ -18,7 +19,7 @@ def obtener_cliente_id_por_correo(correo):
 
 def crear_cliente_si_no_existe(facturacion):
     nombre = facturacion.get("1A", "Cliente Desconocido")
-    correo = facturacion.get("1C", "correo@ejemplo.com")
+    correo = facturacion.get("2A", "correo@ejemplo.com")
 
     payload = {
         "DisplayName": nombre,
@@ -29,7 +30,7 @@ def crear_cliente_si_no_existe(facturacion):
     return r.json().get("Customer", {}).get("Id")
 
 def obtener_item_id(codigo):
-    # Esto debe estar conectado a tu tabla de servicios. Por ahora, devuelve el mismo código como ID.
+    # Debes mapear estos códigos con los reales en QuickBooks si es necesario
     return codigo
 
 def crear_invoice_api_call(invoice_data):
@@ -40,7 +41,7 @@ def crear_invoice_en_quickbooks(data):
     codigos = data["codigos_detectados"]
     facturacion = data["facturacion"]
 
-    correo = facturacion.get("1C", "correo@ejemplo.com")
+    correo = facturacion.get("2A", "correo@ejemplo.com")
     cliente_id = obtener_cliente_id_por_correo(correo)
 
     if not cliente_id:
@@ -65,3 +66,4 @@ def crear_invoice_en_quickbooks(data):
     }
 
     crear_invoice_api_call(invoice_data)
+
