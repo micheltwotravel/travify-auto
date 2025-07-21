@@ -47,8 +47,8 @@ async def upload_pdf(file: UploadFile = File(...)):
         doc.close()
         print("Texto extraído")
 
-        codigos = re.findall(r"\[([A-Z]{2}\d{3})\]\s*\[?(\d+)\]?", texto)
-        facturacion = re.findall(r"\[(\w{1,2})\]\[(.*?)\]", texto)
+        codigos, facturacion = extraer_codigos_y_factura(texto)
+
         print("Códigos y facturación extraídos")
 
         data = {
@@ -125,13 +125,12 @@ async def slack_events(req: Request):
         print("📄 TEXTO EXTRAÍDO:\n", texto[:1000])  # Ver los primeros 1000 caracteres
         doc.close()
 
-        codigos = re.findall(r"\[(\w{2}\d{3})\]\[(\d+)\]", texto)
-        facturacion = re.findall(r"\[(\w{2})\]\[(.*?)\]", texto)
+        codigos, facturacion = extraer_codigos_y_factura(texto)
 
-        data = {
-            "codigos_detectados": [{"codigo": c, "valor": int(v)} for c, v in codigos],
-            "facturacion": {clave: valor for clave, valor in facturacion if clave in ["1A", "2A", "3A", "4A"]}
-        }
+data = {
+    "codigos_detectados": codigos,
+    "facturacion": facturacion
+}
 
         escribir_en_google_sheets(data)
 
@@ -156,3 +155,21 @@ async def slack_events(req: Request):
             })
 
     return {"ok": True}
+def extraer_codigos_y_factura(texto):
+    codigos = []
+    facturacion = {}
+
+    # Extrae códigos de servicio: puede tener valor o no
+    patron_codigos = re.findall(r"\[([A-Z]{2}\d{3})\](?:\[(\d+)\])?", texto)
+    for codigo, valor in patron_codigos:
+        codigos.append({
+            "codigo": codigo,
+            "valor": valor if valor else ""
+        })
+
+    # Extrae info de facturación como [1A][Nombre]
+    patron_factura = re.findall(r"\[(\dA)\]\[(.*?)\]", texto)
+    for campo, valor in patron_factura:
+        facturacion[campo] = valor
+
+    return codigos, facturacion
