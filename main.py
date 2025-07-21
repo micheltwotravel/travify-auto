@@ -115,6 +115,8 @@ async def slack_events(req: Request):
         print("📄 TEXTO EXTRAÍDO:\n", texto[:1000])
         doc.close()
 
+        print("📄 TEXTO EXTRAÍDO:\n", texto[:1000])  # 👈 Agrega esto aquí
+        
         codigos, facturacion = extraer_codigos_y_factura(texto)
 
         data = {
