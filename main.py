@@ -137,12 +137,14 @@ async def slack_events(req: Request):
             f"{servicios}\n\n"
             f"Gracias. Enviando la información al equipo de finanzas."
         )
+    # ... luego de procesar texto y generar mensaje ...
+headers = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
+async with aiohttp.ClientSession() as session:
+    await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
+        "channel": channel_id,
+        "text": mensaje
+    })
 
-        async with aiohttp.ClientSession() as session:
-            await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
-                "channel": channel_id,
-                "text": mensaje
-            })
 
     return {"ok": True}
 
