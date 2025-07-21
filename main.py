@@ -55,11 +55,11 @@ def extraer_codigos_y_factura(texto):
 
 def extraer_texto_pdf_bytes(pdf_bytes):
     texto_total = ""
-    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
-        for i, page in enumerate(doc):
-            texto = page.get_text()
-            print(f"📄 Texto página {i+1}:", texto[:500])
-            texto_total += texto + "\n"
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    for i, page in enumerate(doc):
+        texto = page.get_text()
+        print(f"📄 Texto página {i+1}:", texto[:500])
+        texto_total += texto + "\n"
     return texto_total
 
 @app.post("/upload/")
