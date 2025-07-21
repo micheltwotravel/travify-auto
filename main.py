@@ -159,6 +159,46 @@ async def slack_events(req: Request):
                 }, json={
                     "channel": channel_id,
                     "text": mensaje
+
+from fastapi import Request
+
+@app.get("/callback")
+async def quickbooks_callback(request: Request):
+    from urllib.parse import urlencode
+    import requests
+
+    # Extraer el código y realmId que QuickBooks devuelve
+    code = request.query_params.get("code")
+    realm_id = request.query_params.get("realmId")
+
+    if not code:
+        return {"error": "No se recibió el código de autorización"}
+
+    # Hacer el POST para obtener el access token
+    data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": "https://facturadorbot.onrender.com/callback",
+    }
+
+    auth = (os.getenv("QUICKBOOKS_CLIENT_ID"), os.getenv("QUICKBOOKS_CLIENT_SECRET"))
+
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+    response = requests.post(
+        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        data=urlencode(data),
+        headers=headers,
+        auth=auth
+    )
+
+    token_data = response.json()
+
+    # Guarda este access token (en una variable, archivo, base de datos o secret)
+    print("🔐 TOKEN:", token_data)
+
+    return {"ok": True, "access_token": token_data}
+
                 })
 
     return {"ok": True}
