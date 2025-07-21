@@ -9,9 +9,12 @@ def escribir_en_google_sheets(data):
     print(json.dumps(data, indent=2))
 
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds_dict = json.loads(os.getenv("GOOGLE_CREDS"))
-    credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 
+    # ✅ Cargar el archivo secreto desde Render
+    with open("/etc/secrets/credentials.json") as f:
+        creds_dict = json.load(f)
+
+    credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
     client = gspread.authorize(credentials)
 
     try:
