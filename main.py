@@ -98,13 +98,11 @@ async def slack_events(req: Request):
         user_id = event.get("user")
         channel_id = event.get("channel")
 
-        headers = {
+        async with aiohttp.ClientSession(headers={
             "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
             "Accept": "application/json; charset=utf-8"
-        }
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(file_url, headers=headers) as resp:
+        }) as session:
+            async with session.get(file_url) as resp:
                 if resp.status == 200:
                     pdf_data = await resp.read()
 
@@ -116,7 +114,6 @@ async def slack_events(req: Request):
                     with open("temp.pdf", "wb") as f:
                         f.write(pdf_data)
 
-                    # Procesar como en el endpoint /upload
                     texto = extraer_texto_ocr("temp.pdf")
                     print("📄 TEXTO COMPLETO EXTRAÍDO:\n", texto)
 
@@ -135,19 +132,7 @@ async def slack_events(req: Request):
                     servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
 
                     mensaje = (
-                        f"Servicios detectados correctamente para {nombre}\n"
-                        f"Fecha de inicio: {fecha_inicio}\n"
-                        f"Fecha de fin: {fecha_fin}\n\n"
-                        f"{servicios}\n\n"
-                        f"Gracias. Enviando la información al equipo de finanzas."
-                    )
 
-                    await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
-                        "channel": channel_id,
-                        "text": mensaje
-                    })
-
-    return {"ok": True}
 
 
 def extraer_codigos_y_factura(texto):
