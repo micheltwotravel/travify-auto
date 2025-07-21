@@ -121,13 +121,15 @@ async def slack_events(req: Request):
         import fitz
         doc = fitz.open("temp.pdf")
         texto = ""
-        for page in doc:
+                for page in doc:
             texto += page.get_text()
-            print("🧾 TEXTO EXTRAÍDO:\n", texto[:1000])  # Ver los primeros 1000 caracteres
+            print("📄 TEXTO EXTRAÍDO:\n", texto[:1000])  # Ver los primeros 1000 caracteres
 
         doc.close()
 
-                codigos = re.findall(r"\[(\w{2}\d{3})\]\[(\d+)\]", texto)
+
+        codigos = re.findall(r"\[(\w{2}\d{3})\]\[(\d+)\]", texto)
+
         facturacion = re.findall(r"\[(\w{2})\]\[(.*?)\]", texto)
 
         data = {
