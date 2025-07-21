@@ -1,8 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sheet_writer import escribir_en_google_sheets
-from pdf2image import convert_from_path
-import pytesseract
 import fitz  # PyMuPDF
 import re
 import traceback
@@ -39,12 +37,12 @@ def extraer_codigos_y_factura(texto):
         facturacion[campo] = valor
     return codigos, facturacion
 
-def extraer_texto_ocr(pdf_path):
-    pages = convert_from_path(pdf_path)
+def extraer_texto_pdf(pdf_path):
     texto_total = ""
-    for i, page in enumerate(pages):
-        texto = pytesseract.image_to_string(page, lang="eng")
-        print(f"📄 Texto OCR página {i+1}:", texto[:500])
+    doc = fitz.open(pdf_path)
+    for i, page in enumerate(doc):
+        texto = page.get_text()
+        print(f"📄 Texto página {i+1}:", texto[:500])
         texto_total += texto + "\n"
     return texto_total
 
@@ -55,7 +53,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         with open("temp.pdf", "wb") as f:
             f.write(contents)
 
-        texto = extraer_texto_ocr("temp.pdf")
+        texto = extraer_texto_pdf("temp.pdf")
         codigos, facturacion = extraer_codigos_y_factura(texto)
 
         data = {
@@ -113,7 +111,7 @@ async def slack_events(req: Request):
                 with open("temp.pdf", "wb") as f:
                     f.write(pdf_data)
 
-                texto = extraer_texto_ocr("temp.pdf")
+                texto = extraer_texto_pdf("temp.pdf")
                 codigos, facturacion = extraer_codigos_y_factura(texto)
 
                 data = {
