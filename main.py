@@ -72,7 +72,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         async with aiohttp.ClientSession() as session:
             await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
-                "channel_id = "C094NE421NV" ,
+                "channel": "C094NE421NV",
                 "text": mensaje
             })
 
