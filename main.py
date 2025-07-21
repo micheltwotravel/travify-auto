@@ -75,6 +75,12 @@ async def slack_events(req: Request):
     if "challenge" in body:
         return {"challenge": body["challenge"]}
 
+    event_id = body.get("event_id")
+    if event_id in eventos_procesados:
+        print(f"⚠️ Evento duplicado ignorado: {event_id}")
+        return {"ok": True}
+    eventos_procesados.add(event_id)
+
     event = body.get("event", {})
     subtype = event.get("subtype")
 
