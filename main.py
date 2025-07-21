@@ -6,10 +6,26 @@ import re
 import traceback
 import os
 import aiohttp
+import json
 
 # Carga token desde Render Secrets
 with open("/etc/secrets/slack_token", "r") as f:
     SLACK_BOT_TOKEN = f.read().strip()
+
+# Archivo donde se almacenan eventos procesados
+EVENTOS_FILE = "eventos_procesados.json"
+
+# Cargar eventos previos si existen
+if os.path.exists(EVENTOS_FILE):
+    with open(EVENTOS_FILE, "r") as f:
+        eventos_procesados = set(json.load(f))
+else:
+    eventos_procesados = set()
+
+def guardar_evento(event_id):
+    eventos_procesados.add(event_id)
+    with open(EVENTOS_FILE, "w") as f:
+        json.dump(list(eventos_procesados), f)
 
 app = FastAPI(
     title="PDF to Google Sheets API",
@@ -79,7 +95,7 @@ async def slack_events(req: Request):
     if event_id in eventos_procesados:
         print(f"⚠️ Evento duplicado ignorado: {event_id}")
         return {"ok": True}
-    eventos_procesados.add(event_id)
+    guardar_evento(event_id)
 
     event = body.get("event", {})
     subtype = event.get("subtype")
