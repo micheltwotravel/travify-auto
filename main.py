@@ -72,7 +72,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         async with aiohttp.ClientSession() as session:
             await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
-                "channel": channel_id,
+                "channel_id = "C094NE421NV" ,
                 "text": mensaje
             })
 
@@ -149,17 +149,19 @@ def extraer_codigos_y_factura(texto):
     codigos = []
     facturacion = {}
 
-    # Extrae códigos de servicio: puede tener valor o no
-    patron_codigos = re.findall(r"\[([A-Z]{2}\d{3})\](?:\[(\d+)\])?", texto)
-    for codigo, valor in patron_codigos:
-        codigos.append({
-            "codigo": codigo,
-            "valor": valor if valor else ""
-        })
+    # Extrae códigos de servicio con valor
+    matches = re.findall(r"\[([A-Z]{2}\d{3})\](?:\[(\d+)\])?", texto)
+    for codigo, valor in matches:
+        if valor:
+            codigos.append({
+                "codigo": codigo,
+                "valor": int(valor)
+            })
 
-    # Extrae info de facturación como [1A][Nombre]
+    # Extrae info de facturación
     patron_factura = re.findall(r"\[(\dA)\]\[(.*?)\]", texto)
     for campo, valor in patron_factura:
         facturacion[campo] = valor
 
     return codigos, facturacion
+
