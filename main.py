@@ -5,6 +5,7 @@ import fitz  # PyMuPDF
 import re
 import traceback
 import os
+from quickbooks_writer import crear_invoice_en_quickbooks
 import aiohttp
 import json
 
@@ -75,6 +76,8 @@ async def upload_pdf(file: UploadFile = File(...)):
         }
 
         escribir_en_google_sheets(data)
+        crear_invoice_en_quickbooks(data)
+
         return {"ok": True, "data": data}
 
     except Exception as e:
