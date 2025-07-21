@@ -1,9 +1,15 @@
-import os
+iimport os
 import requests
+import json
 
-# Reemplaza este ID con el tuyo real de QuickBooks
-QUICKBOOKS_BASE_URL = "https://quickbooks.api.intuit.com/v3/company/1234567890"
-ACCESS_TOKEN = os.getenv("QUICKBOOKS_ACCESS_TOKEN")  # Usa Render Secret o .env
+# Cargar tokens desde el archivo generado en /callback
+with open("quickbooks_token.json", "r") as f:
+    tokens = json.load(f)
+
+ACCESS_TOKEN = tokens["access_token"]
+REALM_ID = tokens["realm_id"]
+
+QUICKBOOKS_BASE_URL = f"https://quickbooks.api.intuit.com/v3/company/{REALM_ID}"
 
 HEADERS = {
     "Authorization": f"Bearer {ACCESS_TOKEN}",
@@ -12,7 +18,8 @@ HEADERS = {
 }
 
 def obtener_cliente_id_por_correo(correo):
-    url = f"{QUICKBOOKS_BASE_URL}/query?query=select * from Customer where PrimaryEmailAddr = '{correo}'"
+    query = f"select * from Customer where PrimaryEmailAddr = '{correo}'"
+    url = f"{QUICKBOOKS_BASE_URL}/query?query={requests.utils.quote(query)}"
     r = requests.get(url, headers=HEADERS)
     clientes = r.json().get("QueryResponse", {}).get("Customer", [])
     return clientes[0]["Id"] if clientes else None
@@ -30,7 +37,7 @@ def crear_cliente_si_no_existe(facturacion):
     return r.json().get("Customer", {}).get("Id")
 
 def obtener_item_id(codigo):
-    # Debes mapear estos códigos con los reales en QuickBooks si es necesario
+    # Esto es manual. Podrías mapear códigos con Item IDs reales si quieres.
     return codigo
 
 def crear_invoice_api_call(invoice_data):
@@ -65,5 +72,6 @@ def crear_invoice_en_quickbooks(data):
         "Line": line_items
     }
 
-    crear_invoice_api_call(invoice_data)
+    return crear_invoice_api_call(invoice_data)
+
 
