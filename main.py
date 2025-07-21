@@ -208,19 +208,18 @@ async def quickbooks_callback(request: Request):
     }
 
     response = requests.post(token_url, headers=headers, auth=auth, data=data)
+
     if response.status_code != 200:
         return {"error": "Failed to exchange token", "details": response.text}
 
     tokens = response.json()
-    # Aquí puedes guardar tokens["access_token"], tokens["refresh_token"], tokens["expires_in"]
 
-    return {
-        "msg": "Conexión OAuth exitosa",
-        "access_token": tokens.get("access_token"),
-        "refresh_token": tokens.get("refresh_token"),
-        "realm_id": realm_id
-    }
+    # Guardar los tokens en un archivo
+    with open("quickbooks_token.json", "w") as f:
+        json.dump({
+            "access_token": tokens.get("access_token"),
+            "refresh_token": tokens.get("refresh_token"),
+            "realm_id": realm_id
+        }, f)
 
-                })
-
-    return {"ok": True}
+    return {"ok": True, "msg": "Tokens guardados exitosamente"}
