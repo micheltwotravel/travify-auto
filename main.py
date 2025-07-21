@@ -1,18 +1,17 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sheet_writer import escribir_en_google_sheets
-from fastapi import Request
 from pdf2image import convert_from_path
 import pytesseract
-
-
 import fitz  # PyMuPDF
 import re
 import traceback
-import requests
 import os
 import aiohttp
+from dotenv import load_dotenv
 
+load_dotenv()
+SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 
 app = FastAPI(
     title="PDF to Google Sheets API",
@@ -20,7 +19,6 @@ app = FastAPI(
     version="1.0"
 )
 
-# Habilita CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,10 +27,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from dotenv import load_dotenv
-load_dotenv()
-SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
+def extraer_codigos_y_factura(texto):
+    codigos = []
+    facturacion = {}
+    matches = re.findall(r"\[([A-Z]{2}\d{3})\](?:\[(\d+)\])?", texto)
+    for codigo, valor in matches:
+        if valor:
+            codigos.append({"codigo": codigo, "valor": int(valor)})
+    patron_factura = re.findall(r"\[(\dA)\]\[(.*?)\]", texto)
+    for campo, valor in patron_factura:
+        facturacion[campo] = valor
+    return codigos, facturacion
 
+def extraer_texto_ocr(pdf_path):
+    pages = convert_from_path(pdf_path)
+    texto_total = ""
+    for i, page in enumerate(pages):
+        texto = pytesseract.image_to_string(page, lang="eng")
+        print(f"📄 Texto OCR página {i+1}:\n{texto[:500]}")
+        texto_total += texto + "\n"
+    return texto_total
 
 @app.post("/upload/")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -40,13 +54,8 @@ async def upload_pdf(file: UploadFile = File(...)):
         contents = await file.read()
         with open("temp.pdf", "wb") as f:
             f.write(contents)
-        print("PDF guardado")
 
         texto = extraer_texto_ocr("temp.pdf")
-
-        print("Texto extraído")
-
-            
         codigos, facturacion = extraer_codigos_y_factura(texto)
 
         data = {
@@ -56,26 +65,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         escribir_en_google_sheets(data)
 
-        nombre = data["facturacion"].get("1A", "Cliente desconocido")
-        fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
-        fecha_fin = data["facturacion"].get("4A", "Fecha fin")
-        servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
-
-        mensaje = (
-            f"Servicios detectados correctamente para {nombre}\n"
-            f"Fecha de inicio: {fecha_inicio}\n"
-            f"Fecha de fin: {fecha_fin}\n\n"
-            f"{servicios}\n\n"
-            f"Gracias. Enviando la información al equipo de finanzas."
-        )
-
-        async with aiohttp.ClientSession() as session:
-            await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
-                "channel": "C094NE421NV",
-                "text": mensaje
-            })
-
-        return data
+        return {"ok": True, "data": data}
 
     except Exception as e:
         print("ERROR:", traceback.format_exc())
@@ -94,8 +84,6 @@ async def slack_events(req: Request):
     if event.get("type") == "message" and subtype == "file_share":
         file_info = event["files"][0]
         file_url = file_info["url_private_download"]
-        filename = file_info["name"]
-        user_id = event.get("user")
         channel_id = event.get("channel")
 
         async with aiohttp.ClientSession(headers={
@@ -103,66 +91,47 @@ async def slack_events(req: Request):
             "Accept": "application/json; charset=utf-8"
         }) as session:
             async with session.get(file_url) as resp:
-                if resp.status == 200:
-                    pdf_data = await resp.read()
+                if resp.status != 200:
+                    return {"error": "No se pudo descargar el archivo"}
 
-                    print("Cabecera del archivo descargado:", pdf_data[:10])
-                    if not pdf_data.startswith(b'%PDF'):
-                        print("❌ El archivo descargado NO es un PDF válido.")
-                        return {"error": "Archivo no es PDF"}
+                pdf_data = await resp.read()
 
-                    with open("temp.pdf", "wb") as f:
-                        f.write(pdf_data)
+                if not pdf_data.startswith(b'%PDF'):
+                    print("❌ El archivo descargado NO es un PDF válido.")
+                    return {"error": "Archivo no es PDF"}
 
-                    texto = extraer_texto_ocr("temp.pdf")
-                    print("📄 TEXTO COMPLETO EXTRAÍDO:\n", texto)
+                with open("temp.pdf", "wb") as f:
+                    f.write(pdf_data)
 
-                    codigos, facturacion = extraer_codigos_y_factura(texto)
+                texto = extraer_texto_ocr("temp.pdf")
+                codigos, facturacion = extraer_codigos_y_factura(texto)
 
-                    data = {
-                        "codigos_detectados": codigos,
-                        "facturacion": facturacion
-                    }
+                data = {
+                    "codigos_detectados": codigos,
+                    "facturacion": facturacion
+                }
 
-                    escribir_en_google_sheets(data)
+                escribir_en_google_sheets(data)
 
-                    nombre = data["facturacion"].get("1A", "Cliente desconocido")
-                    fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
-                    fecha_fin = data["facturacion"].get("4A", "Fecha fin")
-                    servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
+                nombre = facturacion.get("1A", "Cliente desconocido")
+                fecha_inicio = facturacion.get("3A", "Fecha inicio")
+                fecha_fin = facturacion.get("4A", "Fecha fin")
+                servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in codigos])
 
-                    mensaje = (
+                mensaje = (
+                    f"Servicios detectados correctamente para {nombre}\n"
+                    f"Fecha de inicio: {fecha_inicio}\n"
+                    f"Fecha de fin: {fecha_fin}\n\n"
+                    f"{servicios}\n\n"
+                    f"Gracias. Enviando la información al equipo de finanzas."
+                )
 
+                await session.post("https://slack.com/api/chat.postMessage", headers={
+                    "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                    "Accept": "application/json; charset=utf-8"
+                }, json={
+                    "channel": channel_id,
+                    "text": mensaje
+                })
 
-
-def extraer_codigos_y_factura(texto):
-    codigos = []
-    facturacion = {}
-
-    # Extrae códigos de servicio con valor
-    matches = re.findall(r"\[([A-Z]{2}\d{3})\](?:\[(\d+)\])?", texto)
-    for codigo, valor in matches:
-        if valor:
-            codigos.append({
-                "codigo": codigo,
-                "valor": int(valor)
-            })
-
-    # Extrae info de facturación
-    patron_factura = re.findall(r"\[(\dA)\]\[(.*?)\]", texto)
-    for campo, valor in patron_factura:
-        facturacion[campo] = valor
-
-    return codigos, facturacion
-
-def extraer_texto_ocr(pdf_path):
-    from pdf2image import convert_from_path
-    import pytesseract
-
-    pages = convert_from_path(pdf_path)
-    texto_total = ""
-    for i, page in enumerate(pages):
-        texto = pytesseract.image_to_string(page, lang="eng")
-        print(f"📄 Texto OCR página {i+1}:\n{texto[:500]}")
-        texto_total += texto + "\n"
-    return texto_total
+    return {"ok": True}
