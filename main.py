@@ -9,9 +9,9 @@ import traceback
 import os
 import aiohttp
 
+# Carga token desde Render Secrets
 with open("/etc/secrets/slack_token", "r") as f:
     SLACK_BOT_TOKEN = f.read().strip()
-
 
 app = FastAPI(
     title="PDF to Google Sheets API",
@@ -44,7 +44,7 @@ def extraer_texto_ocr(pdf_path):
     texto_total = ""
     for i, page in enumerate(pages):
         texto = pytesseract.image_to_string(page, lang="eng")
-        print(f"📄 Texto OCR página {i+1}:\n{texto[:500]}")
+        print(f"📄 Texto OCR página {i+1}:", texto[:500])
         texto_total += texto + "\n"
     return texto_total
 
@@ -64,7 +64,6 @@ async def upload_pdf(file: UploadFile = File(...)):
         }
 
         escribir_en_google_sheets(data)
-
         return {"ok": True, "data": data}
 
     except Exception as e:
@@ -82,9 +81,13 @@ async def slack_events(req: Request):
     subtype = event.get("subtype")
 
     if event.get("type") == "message" and subtype == "file_share":
+        if "files" not in event or not event["files"]:
+            print("⚠️ No se encontraron archivos en el evento Slack.")
+            return {"error": "No hay archivos"}
+
         file_info = event["files"][0]
         file_url = file_info["url_private_download"]
-        channel_id = event.get("channel")
+        channel_id = event.get("channel") or event.get("channel_id")
 
         async with aiohttp.ClientSession(headers={
             "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
@@ -98,6 +101,13 @@ async def slack_events(req: Request):
 
                 if not pdf_data.startswith(b'%PDF'):
                     print("❌ El archivo descargado NO es un PDF válido.")
+                    await session.post("https://slack.com/api/chat.postMessage", headers={
+                        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                        "Accept": "application/json; charset=utf-8"
+                    }, json={
+                        "channel": channel_id,
+                        "text": "❌ El archivo subido no es un PDF válido. Por favor intenta nuevamente con otro archivo."
+                    })
                     return {"error": "Archivo no es PDF"}
 
                 with open("temp.pdf", "wb") as f:
