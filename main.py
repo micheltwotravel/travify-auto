@@ -98,7 +98,11 @@ async def slack_events(req: Request):
         user_id = event.get("user")
         channel_id = event.get("channel")
 
-        headers = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
+        headers = {
+            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+            "Accept": "application/json; charset=utf-8"
+        }
+
         async with aiohttp.ClientSession() as session:
             async with session.get(file_url, headers=headers) as resp:
                 if resp.status == 200:
@@ -112,41 +116,39 @@ async def slack_events(req: Request):
                     with open("temp.pdf", "wb") as f:
                         f.write(pdf_data)
 
-        # Procesar como en el endpoint /upload
-        texto = extraer_texto_ocr("temp.pdf")
-        print("📄 TEXTO COMPLETO EXTRAÍDO:\n", texto)
-        
-        codigos, facturacion = extraer_codigos_y_factura(texto)
+                    # Procesar como en el endpoint /upload
+                    texto = extraer_texto_ocr("temp.pdf")
+                    print("📄 TEXTO COMPLETO EXTRAÍDO:\n", texto)
 
-        data = {
-            "codigos_detectados": codigos,
-            "facturacion": facturacion
-        }
+                    codigos, facturacion = extraer_codigos_y_factura(texto)
 
-        escribir_en_google_sheets(data)
+                    data = {
+                        "codigos_detectados": codigos,
+                        "facturacion": facturacion
+                    }
 
-        nombre = data["facturacion"].get("1A", "Cliente desconocido")
-        fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
-        fecha_fin = data["facturacion"].get("4A", "Fecha fin")
-        servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
+                    escribir_en_google_sheets(data)
 
-        mensaje = (
-            f"Servicios detectados correctamente para {nombre}\n"
-            f"Fecha de inicio: {fecha_inicio}\n"
-            f"Fecha de fin: {fecha_fin}\n\n"
-            f"{servicios}\n\n"
-            f"Gracias. Enviando la información al equipo de finanzas."
-        )
-    # ... luego de procesar texto y generar mensaje ...
-headers = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
-async with aiohttp.ClientSession() as session:
-    await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
-        "channel": channel_id,
-        "text": mensaje
-    })
+                    nombre = data["facturacion"].get("1A", "Cliente desconocido")
+                    fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
+                    fecha_fin = data["facturacion"].get("4A", "Fecha fin")
+                    servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
 
+                    mensaje = (
+                        f"Servicios detectados correctamente para {nombre}\n"
+                        f"Fecha de inicio: {fecha_inicio}\n"
+                        f"Fecha de fin: {fecha_fin}\n\n"
+                        f"{servicios}\n\n"
+                        f"Gracias. Enviando la información al equipo de finanzas."
+                    )
+
+                    await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
+                        "channel": channel_id,
+                        "text": mensaje
+                    })
 
     return {"ok": True}
+
 
 def extraer_codigos_y_factura(texto):
     codigos = []
