@@ -47,6 +47,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         doc.close()
         print("Texto extraído")
 
+            
         codigos, facturacion = extraer_codigos_y_factura(texto)
 
         data = {
@@ -69,7 +70,6 @@ async def upload_pdf(file: UploadFile = File(...)):
             f"Gracias. Enviando la información al equipo de finanzas."
         )
 
-        # Enviar respuesta al canal
         async with aiohttp.ClientSession() as session:
             await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
                 "channel": channel_id,
@@ -86,14 +86,12 @@ async def upload_pdf(file: UploadFile = File(...)):
 async def slack_events(req: Request):
     body = await req.json()
 
-    # Verificación inicial de Slack (cuando activas la URL)
     if "challenge" in body:
         return {"challenge": body["challenge"]}
 
     event = body.get("event", {})
     subtype = event.get("subtype")
 
-    # Detectar si el evento es un archivo compartido
     if event.get("type") == "message" and subtype == "file_share":
         file_info = event["files"][0]
         file_url = file_info["url_private_download"]
@@ -101,7 +99,6 @@ async def slack_events(req: Request):
         user_id = event.get("user")
         channel_id = event.get("channel")
 
-        # Descargar el PDF usando el token del bot
         headers = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
         async with aiohttp.ClientSession() as session:
             async with session.get(file_url, headers=headers) as resp:
@@ -110,21 +107,20 @@ async def slack_events(req: Request):
                     with open("temp.pdf", "wb") as f:
                         f.write(pdf_data)
 
-        # Procesar como en tu endpoint de /upload
-        import fitz
+        # Procesar como en el endpoint /upload
         doc = fitz.open("temp.pdf")
         texto = ""
         for page in doc:
             texto += page.get_text()
-        print("📄 TEXTO EXTRAÍDO:\n", texto[:1000])  # Ver los primeros 1000 caracteres
+        print("📄 TEXTO EXTRAÍDO:\n", texto[:1000])
         doc.close()
 
         codigos, facturacion = extraer_codigos_y_factura(texto)
 
-data = {
-    "codigos_detectados": codigos,
-    "facturacion": facturacion
-}
+        data = {
+            "codigos_detectados": codigos,
+            "facturacion": facturacion
+        }
 
         escribir_en_google_sheets(data)
 
@@ -141,7 +137,6 @@ data = {
             f"Gracias. Enviando la información al equipo de finanzas."
         )
 
-        # Enviar respuesta al canal
         async with aiohttp.ClientSession() as session:
             await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
                 "channel": channel_id,
@@ -149,6 +144,7 @@ data = {
             })
 
     return {"ok": True}
+
 def extraer_codigos_y_factura(texto):
     codigos = []
     facturacion = {}
