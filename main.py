@@ -214,12 +214,19 @@ async def quickbooks_callback(request: Request):
 
     tokens = response.json()
 
-    # Guardar los tokens en un archivo
+    # Preparar el contenido a guardar
+    token_data = {
+        "access_token": tokens.get("access_token"),
+        "refresh_token": tokens.get("refresh_token"),
+        "realm_id": realm_id
+    }
+
+    # Mostrar en logs de Render
+    print("📦 TOKENS:", token_data)
+
+    # Guardar en archivo
     with open("quickbooks_token.json", "w") as f:
-        json.dump({
-            "access_token": tokens.get("access_token"),
-            "refresh_token": tokens.get("refresh_token"),
-            "realm_id": realm_id
-        }, f)
+        json.dump(token_data, f)
 
     return {"ok": True, "msg": "Tokens guardados exitosamente"}
+
