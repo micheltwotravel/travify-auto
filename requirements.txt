@@ -11,3 +11,5 @@ slack_sdk
 requests
 aiohttp
 python-dotenv
+pdf2image
+pytesseract
