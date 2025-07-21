@@ -49,22 +49,18 @@ async def upload_pdf(file: UploadFile = File(...)):
 
         codigos, facturacion = extraer_codigos_y_factura(texto)
 
-        print("Códigos y facturación extraídos")
-
         data = {
-            "codigos_detectados": [{"codigo": c, "valor": int(v)} for c, v in codigos],
-            "facturacion": {clave: valor for clave, valor in facturacion if clave in ["1A", "2A", "3A", "4A"]}
+            "codigos_detectados": codigos,
+            "facturacion": facturacion
         }
 
-        print("Data construida:", data)
         escribir_en_google_sheets(data)
-        print("Datos escritos en Sheets")
 
-        # ✅ ESTE BLOQUE DEBE IR DENTRO DEL TRY
         nombre = data["facturacion"].get("1A", "Cliente desconocido")
         fecha_inicio = data["facturacion"].get("3A", "Fecha inicio")
         fecha_fin = data["facturacion"].get("4A", "Fecha fin")
         servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in data["codigos_detectados"]])
+
         mensaje = (
             f"Servicios detectados correctamente para {nombre}\n"
             f"Fecha de inicio: {fecha_inicio}\n"
@@ -73,9 +69,7 @@ async def upload_pdf(file: UploadFile = File(...)):
             f"Gracias. Enviando la información al equipo de finanzas."
         )
 
-        # Enviar mensaje a Slack
-        channel_id = "C094NE421NV"
-        headers = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
+        # Enviar respuesta al canal
         async with aiohttp.ClientSession() as session:
             await session.post("https://slack.com/api/chat.postMessage", headers=headers, json={
                 "channel": channel_id,
