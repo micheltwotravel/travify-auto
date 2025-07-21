@@ -8,10 +8,10 @@ import re
 import traceback
 import os
 import aiohttp
-from dotenv import load_dotenv
 
-load_dotenv()
-SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
+with open("/etc/secrets/slack_token", "r") as f:
+    SLACK_BOT_TOKEN = f.read().strip()
+
 
 app = FastAPI(
     title="PDF to Google Sheets API",
