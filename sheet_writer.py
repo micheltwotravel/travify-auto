@@ -40,3 +40,9 @@ def escribir_en_google_sheets(data):
 
     except Exception as e:
         print(f"❌ Error al escribir en Google Sheets: {e}")
+
+
+        print("✅ Todos los datos fueron escritos correctamente.")
+
+    except Exception as e:
+        print(f"❌ Error al escribir en Google Sheets: {e}")
