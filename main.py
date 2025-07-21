@@ -1,13 +1,19 @@
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sheet_writer import escribir_en_google_sheets
-import fitz  # PyMuPDF
-import re
-import traceback
+from fastapi.responses import RedirectResponse
+
 import os
-from quickbooks_writer import crear_invoice_en_quickbooks
-import aiohttp
+import re
 import json
+import fitz  # PyMuPDF
+import requests
+import traceback
+import urllib.parse
+import aiohttp
+
+from sheet_writer import escribir_en_google_sheets
+from quickbooks_writer import crear_invoice_en_quickbooks
+
 
 # Carga token desde Render Secrets
 with open("/etc/secrets/slack_token", "r") as f:
@@ -160,44 +166,60 @@ async def slack_events(req: Request):
                     "channel": channel_id,
                     "text": mensaje
 
-from fastapi import Request
+@app.get("/")
+def root():
+    return {"msg": "Hello from FastAPI on Render!"}
+
+@app.get("/connect")
+def connect_to_quickbooks():
+    client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
+    redirect_uri = "https://travify-api.onrender.com/callback"
+    scope = "com.intuit.quickbooks.accounting"
+    state = "secure_random_string"  # Puedes mejorar esto con un generador aleatorio real
+
+    auth_url = (
+        "https://appcenter.intuit.com/connect/oauth2?"
+        f"client_id={client_id}&response_type=code&scope={urllib.parse.quote(scope)}"
+        f"&redirect_uri={urllib.parse.quote(redirect_uri)}&state={state}"
+    )
+    return RedirectResponse(auth_url)
 
 @app.get("/callback")
 async def quickbooks_callback(request: Request):
-    from urllib.parse import urlencode
-    import requests
-
-    # Extraer el código y realmId que QuickBooks devuelve
     code = request.query_params.get("code")
     realm_id = request.query_params.get("realmId")
 
-    if not code:
-        return {"error": "No se recibió el código de autorización"}
+    token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+    client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
+    client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
+    redirect_uri = "https://travify-api.onrender.com/callback"
 
-    # Hacer el POST para obtener el access token
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+
+    auth = (client_id, client_secret)
+
     data = {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": "https://facturadorbot.onrender.com/callback",
+        "redirect_uri": redirect_uri
     }
 
-    auth = (os.getenv("QUICKBOOKS_CLIENT_ID"), os.getenv("QUICKBOOKS_CLIENT_SECRET"))
+    response = requests.post(token_url, headers=headers, auth=auth, data=data)
+    if response.status_code != 200:
+        return {"error": "Failed to exchange token", "details": response.text}
 
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    tokens = response.json()
+    # Aquí puedes guardar tokens["access_token"], tokens["refresh_token"], tokens["expires_in"]
 
-    response = requests.post(
-        "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
-        data=urlencode(data),
-        headers=headers,
-        auth=auth
-    )
-
-    token_data = response.json()
-
-    # Guarda este access token (en una variable, archivo, base de datos o secret)
-    print("🔐 TOKEN:", token_data)
-
-    return {"ok": True, "access_token": token_data}
+    return {
+        "msg": "Conexión OAuth exitosa",
+        "access_token": tokens.get("access_token"),
+        "refresh_token": tokens.get("refresh_token"),
+        "realm_id": realm_id
+    }
 
                 })
 
