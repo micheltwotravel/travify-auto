@@ -2,7 +2,8 @@ import os
 import requests
 import json
 from urllib.parse import quote
-from codigo_mapper import obtener_item_id_desde_codigo
+from codigo_mapper import codigo_a_servicio, obtener_item_id_desde_codigo
+
 
 
 # Cargar tokens desde el archivo generado en /callback
@@ -133,18 +134,34 @@ def crear_invoice_en_quickbooks(data):
             return None
 
     line_items = []
-    for servicio in codigos:
-        item_id = obtener_item_id(servicio["codigo"])
+    for item in codigos:
+        codigo = item["codigo"]
+        valor = item["valor"]
+
+        nombre_servicio = codigo_a_servicio.get(codigo)
+        if not nombre_servicio:
+            print(f"❌ Código no reconocido: {codigo}")
+            continue
+
+        item_id = obtener_item_id_desde_codigo(codigo)
+        if not item_id:
+            print(f"⚠️ No se encontró ID en QuickBooks para {nombre_servicio}")
+            continue
+
         line_items.append({
             "DetailType": "SalesItemLineDetail",
-            "Amount": servicio["valor"],
+            "Amount": valor,
             "SalesItemLineDetail": {
                 "ItemRef": {
                     "value": item_id,
-                    "name": servicio["codigo"]
+                    "name": nombre_servicio
                 }
             }
         })
+
+    if not line_items:
+        print("⚠️ No se generó ningún ítem válido para la factura.")
+        return None
 
     invoice_data = {
         "CustomerRef": {"value": cliente_id},
@@ -153,7 +170,6 @@ def crear_invoice_en_quickbooks(data):
 
     resultado = crear_invoice_api_call(invoice_data, base_url, headers)
 
-    # Si falló porque el token expiró, volver a intentar con token nuevo
     if resultado.get("Fault", {}).get("Error", [{}])[0].get("Message") == "Token expired":
         print("🔁 Token expirado al facturar. Refrescando...")
         tokens = refrescar_token()
@@ -177,6 +193,8 @@ def crear_invoice_en_quickbooks(data):
         "invoice_url": invoice_url,
         "detalle": resultado
     }
+
+    
 def obtener_cliente_por_nombre(nombre, base_url, headers):
     query = f"SELECT Id, DisplayName, SyncToken FROM Customer WHERE DisplayName = '{nombre}'"
     url = f"{base_url}/query?query={quote(query)}"
@@ -237,4 +255,8 @@ def crear_cliente_si_no_existe(facturacion, base_url, headers):
     print("❌ Error creando cliente:", r.text)
     return None
 
-item_id = obtener_item_id_desde_codigo("CD011")
+item_id = obtener_item_id_desde_codigo(codigo)
+if not item_id:
+    print(f"❌ Código no encontrado o sin ID: {codigo}")
+    continue
+
