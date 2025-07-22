@@ -230,5 +230,15 @@ async def quickbooks_callback(request: Request):
     with open("quickbooks_token.json", "w") as f:
         json.dump(token_data, f)
 
+    from fastapi import Request
+from quickbooks_writer import crear_invoice_en_quickbooks
+
+@app.post("/facturar")
+async def facturar(request: Request):
+    data = await request.json()
+    resultado = crear_invoice_en_quickbooks(data)
+    return resultado
+
+
     return {"ok": True, "msg": "Tokens guardados exitosamente"}
 
