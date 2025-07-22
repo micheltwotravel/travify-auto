@@ -5,7 +5,6 @@ from urllib.parse import quote
 from codigo_mapper import codigo_a_servicio, obtener_item_id_desde_codigo
 
 
-
 # Cargar tokens desde el archivo generado en /callback
 def cargar_tokens():
     try:
