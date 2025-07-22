@@ -1,5 +1,6 @@
 # codigo_mapper.py
 
+# Mapeo de código → nombre del servicio
 codigo_a_servicio = {
     "AT001": "ATV",
     "BA002": "Baby Sitters",
@@ -50,3 +51,62 @@ codigo_a_servicio = {
     "WR047": "Wrestling",
     "YO048": "Yoga"
 }
+
+# Mapeo de nombre del servicio → ID de QuickBooks
+servicio_a_id = {
+    "ATV": "28",
+    "Baby Sitters": "30",
+    "Bartender": "1",
+    "Beach Club": "38",
+    "Boat Lunch Box": "33",
+    "Bodyguard": "2",
+    "Cake": "4",
+    "Car Rental": "5",
+    "Cartagena Tours": "41",
+    "Chef BBQ": "11",
+    "Chef Dinner": "43",
+    "Chef Lunch at the villa": "6",
+    "Chef catering": "7",
+    "Chef on board": "8",
+    "Cleaning": "9",
+    "Concierge": "10",
+    "Cook": "12",
+    "DJ": "13",
+    "Dance Class": "14",
+    "Driver": "15",
+    "FlyBoard": "16",
+    "Golf": "18",
+    "Groceries": "17",
+    "Gym": "19",
+    "Hair & Makeup": "21",
+    "Helicopter": "22",
+    "IV Therapy": "23",
+    "Island Hopping": "25",
+    "Laundry": "26",
+    "Liquor and Drinks": "27",
+    "Massage": "29",
+    "Medellin Tours": "32",
+    "Mexican Tours": "31",
+    "NightClub (Deposit)": "37",
+    "Non - Food Purchases": "34",
+    "O - Chef": "3",
+    "Other services": "35",
+    "Photographer": "36",
+    "Private Flight": "39",
+    "Rentals": "40",
+    "Scuba Diving": "42",
+    "Services": "24",
+    "Snorkel": "44",
+    "Spa": "45",
+    "Tickets": "46",
+    "Transport": "47",
+    "Wrestling": "48",
+    "Yoga": "49"
+}
+
+# Función que devuelve el ID final que se necesita para la factura
+def obtener_item_id_desde_codigo(codigo):
+    nombre = codigo_a_servicio.get(codigo)
+    if not nombre:
+        return None
+    return servicio_a_id.get(nombre)
