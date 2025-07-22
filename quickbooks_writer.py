@@ -58,7 +58,7 @@ def refrescar_token():
 
 
 def obtener_cliente_id_por_correo(correo, base_url, headers):
-    query = f"select * from Customer where PrimaryEmailAddr = '{correo}'"
+    query = f'select * from Customer where PrimaryEmailAddr = "{correo}"'
     url = f"{base_url}/query?query={query}"
     r = requests.get(url, headers=headers)
 
