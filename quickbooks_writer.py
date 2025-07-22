@@ -73,7 +73,7 @@ def buscar_cliente_por_email(email, base_url, headers):
         tokens = refrescar_token()
         if not tokens:
             return None
-        headers["Authorization"] = f"Bearer {tokens['access_token']}"]
+        headers["Authorization"] = f"Bearer {tokens['access_token']}"
         r = requests.get(url, headers=headers)
         if r.status_code == 200:
             customers = r.json().get("QueryResponse", {}).get("Customer", [])
