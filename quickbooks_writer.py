@@ -57,7 +57,8 @@ def refrescar_token():
     return tokens
 
 def buscar_cliente_por_email(email, base_url, headers):
-    query = f"select Id, DisplayName, PrimaryEmailAddr from Customer where PrimaryEmailAddr.Address = '{email}'"
+    # OJO: usamos 'PrimaryEmailAddr = '<correo>' directamente, sin .Address
+    query = f"SELECT Id, DisplayName FROM Customer WHERE PrimaryEmailAddr = '{email}'"
     url = f"{base_url}/query?query={query}"
     r = requests.get(url, headers=headers)
 
