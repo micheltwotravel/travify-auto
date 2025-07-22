@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+from urllib.parse import quote
 
 # Cargar tokens desde el archivo generado en /callback
 def cargar_tokens():
@@ -57,9 +58,11 @@ def refrescar_token():
     return tokens
 
 def buscar_cliente_por_email(email, base_url, headers):
-    # OJO: usamos 'PrimaryEmailAddr = '<correo>' directamente, sin .Address
+    # ✅ Reemplazamos 'PrimaryEmailAddr.Address' por 'PrimaryEmailAddr'
     query = f"SELECT Id, DisplayName FROM Customer WHERE PrimaryEmailAddr = '{email}'"
-    url = f"{base_url}/query?query={query}"
+    encoded_query = quote(query)
+    url = f"{base_url}/query?query={encoded_query}"
+
     r = requests.get(url, headers=headers)
 
     if r.status_code == 200:
@@ -81,7 +84,6 @@ def buscar_cliente_por_email(email, base_url, headers):
 
     print("❌ Error buscando cliente por correo:", r.text)
     return None
-
 
 def obtener_item_id(codigo):
     return codigo  # puedes hacer un mapeo real aquí
