@@ -72,48 +72,45 @@ def extraer_texto_pdf_bytes(pdf_bytes):
 @app.post("/upload/")
 async def upload_pdf(file: UploadFile = File(...)):
     try:
-        # 1. Guardar el PDF temporalmente
         contents = await file.read()
         with open("temp.pdf", "wb") as f:
             f.write(contents)
 
-        # 2. Extraer texto del PDF
-        import fitz
         doc = fitz.open("temp.pdf")
         texto = "".join([page.get_text() for page in doc])
 
-        # 3. Extraer códigos del texto
-        import re
-        codigos = re.findall(r"\[(\w{2}\d{3})\]", texto)
+        # Extraer códigos con valores: [XX000][123]
+        matches = re.findall(r"\[([A-Z]{2}\d{3})\](?:\[(\d+)\])?", texto)
+        codigos_detectados = []
+        for codigo, valor in matches:
+            if valor:
+                codigos_detectados.append({
+                    "codigo": codigo,
+                    "valor": int(valor)
+                })
 
-        # 4. Buscar precios desde Google Sheets
-        from sheet_writer import buscar_valores_codigos
-        codigos_con_valores = buscar_valores_codigos(codigos)
+        # Extraer información de facturación
+        facturacion = {}
+        for key in ["1A", "2A", "3A", "4A"]:
+            match = re.search(rf"\[{key}\]\[([^\[\]\n]+)\]", texto)
+            if match:
+                facturacion[key] = match.group(1).strip()
 
-        # 5. Armar datos de facturación
-        facturacion = {
-            "1A": "Cliente Detectado PDF",  # Esto puede venir del texto
-            "2A": "cliente@correo.com"     # Esto también podría extraerse si está en el texto
-        }
+        if not codigos_detectados:
+            return {"ok": False, "msg": "No se detectaron códigos con valores."}
 
-        # 6. Crear factura
-        from quickbooks_writer import crear_invoice_en_quickbooks
         data = {
-            "codigos_detectados": codigos_con_valores,
+            "codigos_detectados": codigos_detectados,
             "facturacion": facturacion
         }
-        resultado = crear_invoice_en_quickbooks(data)
 
-        return {
-            "ok": True,
-            "mensaje": "Factura generada correctamente",
-            "resultado": resultado
-        }
+        resultado = crear_invoice_en_quickbooks(data)
+        return {"ok": True, "mensaje": "Factura enviada a QuickBooks", "resultado": resultado}
 
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return {"ok": False, "error": str(e)}
+
 
 @app.post("/slack/events")
 async def slack_events(req: Request):
@@ -241,7 +238,6 @@ async def quickbooks_callback(request: Request):
 
     tokens = response.json()
 
-    # Preparar el contenido a guardar
     token_data = {
         "access_token": tokens.get("access_token"),
         "refresh_token": tokens.get("refresh_token"),
@@ -255,15 +251,15 @@ async def quickbooks_callback(request: Request):
     with open("quickbooks_token.json", "w") as f:
         json.dump(token_data, f)
 
-    from fastapi import Request
-from quickbooks_writer import crear_invoice_en_quickbooks
+    return {"ok": True, "msg": "Tokens guardados exitosamente"}
+
 
 @app.post("/facturar")
 async def facturar(request: Request):
-    data = await request.json()
-    resultado = crear_invoice_en_quickbooks(data)
-    return resultado
-
-
-    return {"ok": True, "msg": "Tokens guardados exitosamente"}
-
+    try:
+        data = await request.json()
+        resultado = crear_invoice_en_quickbooks(data)
+        return {"ok": True, "resultado": resultado}
+    except Exception as e:
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
