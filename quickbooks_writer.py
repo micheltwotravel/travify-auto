@@ -57,8 +57,8 @@ def refrescar_token():
     return tokens
 
 
-def obtener_cliente_id_por_correo(correo, base_url, headers):
-    query = f"select * from Customer where PrimaryEmailAddr = '{correo}'"
+def buscar_cliente_por_email(email, base_url, headers):
+    query = f"select * from Customer where PrimaryEmailAddr.Address = '{email}'"
     url = f"{base_url}/query?query={query}"
     r = requests.get(url, headers=headers)
 
@@ -72,13 +72,12 @@ def obtener_cliente_id_por_correo(correo, base_url, headers):
     return None
 
 
-
 def crear_cliente_si_no_existe(facturacion, base_url, headers):
     nombre = facturacion.get("1A", "Cliente Desconocido")
     correo = facturacion.get("2A", "correo@ejemplo.com")
 
     # Primero intenta buscar el cliente por correo
-    cliente_id = obtener_cliente_id_por_correo(correo, base_url, headers)
+    cliente_id = buscar_cliente_por_email(correo, base_url, headers)
     if cliente_id:
         return cliente_id  # Ya existe
 
@@ -95,10 +94,11 @@ def crear_cliente_si_no_existe(facturacion, base_url, headers):
 
     elif r.status_code == 400 and "Duplicate Name Exists" in r.text:
         print("⚠️ Cliente ya existe, buscando ID...")
-        return obtener_cliente_id_por_correo(correo, base_url, headers)
+        return buscar_cliente_por_email(correo, base_url, headers)
 
     print("❌ Error creando cliente:", r.text)
     return None
+
 
 def obtener_item_id(codigo):
     return codigo  # puedes hacer un mapeo real aquí
@@ -126,7 +126,8 @@ def crear_invoice_en_quickbooks(data):
     facturacion = data.get("facturacion", {})
 
     correo = facturacion.get("2A", "correo@ejemplo.com")
-    cliente_id = obtener_cliente_id_por_correo(correo, base_url, headers)
+    cliente_id = buscar_cliente_por_email(correo, base_url, headers)
+
 
     if not cliente_id:
         cliente_id = crear_cliente_si_no_existe(facturacion, base_url, headers)
