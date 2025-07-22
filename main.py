@@ -72,23 +72,48 @@ def extraer_texto_pdf_bytes(pdf_bytes):
 @app.post("/upload/")
 async def upload_pdf(file: UploadFile = File(...)):
     try:
+        # 1. Guardar el PDF temporalmente
         contents = await file.read()
-        texto = extraer_texto_pdf_bytes(contents)
-        codigos, facturacion = extraer_codigos_y_factura(texto)
+        with open("temp.pdf", "wb") as f:
+            f.write(contents)
 
-        data = {
-            "codigos_detectados": codigos,
-            "facturacion": facturacion
+        # 2. Extraer texto del PDF
+        import fitz
+        doc = fitz.open("temp.pdf")
+        texto = "".join([page.get_text() for page in doc])
+
+        # 3. Extraer códigos del texto
+        import re
+        codigos = re.findall(r"\[(\w{2}\d{3})\]", texto)
+
+        # 4. Buscar precios desde Google Sheets
+        from sheet_writer import buscar_valores_codigos
+        codigos_con_valores = buscar_valores_codigos(codigos)
+
+        # 5. Armar datos de facturación
+        facturacion = {
+            "1A": "Cliente Detectado PDF",  # Esto puede venir del texto
+            "2A": "cliente@correo.com"     # Esto también podría extraerse si está en el texto
         }
 
-        escribir_en_google_sheets(data)
-        crear_invoice_en_quickbooks(data)
+        # 6. Crear factura
+        from quickbooks_writer import crear_invoice_en_quickbooks
+        data = {
+            "codigos_detectados": codigos_con_valores,
+            "facturacion": facturacion
+        }
+        resultado = crear_invoice_en_quickbooks(data)
 
-        return {"ok": True, "data": data}
+        return {
+            "ok": True,
+            "mensaje": "Factura generada correctamente",
+            "resultado": resultado
+        }
 
     except Exception as e:
-        print("ERROR:", traceback.format_exc())
-        return {"error": traceback.format_exc()}
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
 
 @app.post("/slack/events")
 async def slack_events(req: Request):
