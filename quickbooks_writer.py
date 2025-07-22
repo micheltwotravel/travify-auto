@@ -225,10 +225,6 @@ def crear_cliente_si_no_existe(facturacion, base_url, headers):
     print("❌ Error creando cliente:", r.text)
     return None
 
-
-    print("❌ Error creando cliente:", r.text)
-    return None
-
 def buscar_cliente_por_nombre(nombre, base_url, headers):
     query = f"SELECT Id, DisplayName FROM Customer WHERE DisplayName = '{nombre}'"
     encoded_query = quote(query)
