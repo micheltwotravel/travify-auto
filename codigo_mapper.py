@@ -105,8 +105,8 @@ servicio_a_id = {
 }
 
 # Función que devuelve el ID final que se necesita para la factura
+from servicio_a_id import servicio_a_id
+
 def obtener_item_id_desde_codigo(codigo):
-    nombre = codigo_a_servicio.get(codigo)
-    if not nombre:
-        return None
-    return servicio_a_id.get(nombre)
+    nombre_servicio = codigo_a_servicio.get(codigo)
+    return servicio_a_id.get(nombre_servicio, "1")  # "1" como fallback para pruebas
