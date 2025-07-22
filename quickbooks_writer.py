@@ -80,4 +80,16 @@ def crear_invoice_en_quickbooks(data):
         "Line": line_items
     }
 
-    return crear_invoice_api_call(invoice_data, base_url, headers)
+       resultado = crear_invoice_api_call(invoice_data, base_url, headers)
+
+    invoice_id = resultado.get("Invoice", {}).get("Id")
+    doc_number = resultado.get("Invoice", {}).get("DocNumber")
+    invoice_url = f"https://app.qbo.intuit.com/app/invoice?txnId={invoice_id}" if invoice_id else "No disponible"
+
+    return {
+        "success": True,
+        "invoice_id": invoice_id,
+        "doc_number": doc_number,
+        "invoice_url": invoice_url,
+        "detalle": resultado
+    }
