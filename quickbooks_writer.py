@@ -3,8 +3,13 @@ import requests
 import json
 
 # Cargar tokens desde el archivo generado en /callback
-with open("quickbooks_token.json", "r") as f:
-    tokens = json.load(f)
+def cargar_tokens():
+    try:
+        with open("quickbooks_token.json", "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("⚠️ No se encontró quickbooks_token.json")
+        return None
 
 ACCESS_TOKEN = tokens["access_token"]
 REALM_ID = tokens["realm_id"]
