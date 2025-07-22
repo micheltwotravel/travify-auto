@@ -59,13 +59,18 @@ def refrescar_token():
 
 def obtener_cliente_id_por_correo(correo, base_url, headers):
     query = f"select * from Customer where PrimaryEmailAddr = '{correo}'"
-    url = f"{base_url}/query?query={requests.utils.quote(query)}"
+    url = f"{base_url}/query?query={query}"
     r = requests.get(url, headers=headers)
-    if r.status_code != 200:
-        print("❌ Error al buscar cliente:", r.text)
-        return None
-    clientes = r.json().get("QueryResponse", {}).get("Customer", [])
-    return clientes[0]["Id"] if clientes else None
+
+    if r.status_code == 200:
+        customers = r.json().get("QueryResponse", {}).get("Customer", [])
+        if customers:
+            return customers[0].get("Id")
+    else:
+        print("❌ Error buscando cliente por correo:", r.text)
+    
+    return None
+
 
 def crear_cliente_si_no_existe(facturacion, base_url, headers):
     nombre = facturacion.get("1A", "Cliente Desconocido")
