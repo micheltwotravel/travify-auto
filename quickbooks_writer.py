@@ -65,11 +65,15 @@ def obtener_cliente_id_por_correo(correo, base_url, headers):
     if r.status_code == 200:
         customers = r.json().get("QueryResponse", {}).get("Customer", [])
         if customers:
+            print("✅ Cliente encontrado:", customers[0])
             return customers[0].get("Id")
+        else:
+            print("⚠️ Cliente no encontrado. Respuesta completa:", r.json())
     else:
         print("❌ Error buscando cliente por correo:", r.text)
     
     return None
+
 
 
 def crear_cliente_si_no_existe(facturacion, base_url, headers):
