@@ -180,12 +180,12 @@ def crear_cliente_si_no_existe(facturacion, base_url, headers):
     nombre = facturacion.get("1A", "Cliente Desconocido")
     correo = facturacion.get("2A", "correo@ejemplo.com")
 
-    # 1️⃣ Buscar cliente por correo
+    # Buscar por correo
     cliente_id = buscar_cliente_por_email(correo, base_url, headers)
     if cliente_id:
         return cliente_id
 
-    # 2️⃣ Crear cliente si no existe
+    # Intentar crear cliente
     payload = {
         "DisplayName": nombre,
         "PrimaryEmailAddr": {"Address": correo}
@@ -197,15 +197,50 @@ def crear_cliente_si_no_existe(facturacion, base_url, headers):
         print("✅ Cliente creado con éxito.")
         return r.json().get("Customer", {}).get("Id")
 
+    # Si ya existe el nombre, intentar actualizar el cliente con ese nombre para agregarle el correo
     elif r.status_code == 400 and "Duplicate Name Exists" in r.text:
-        print("⚠️ Nombre ya existe. Buscando por correo nuevamente...")
-        cliente_id = buscar_cliente_por_email(correo, base_url, headers)
-        if cliente_id:
+        print("⚠️ Nombre ya existe. Buscando cliente por nombre para agregar correo...")
+
+        cliente_id = buscar_cliente_por_nombre(nombre, base_url, headers)
+        if not cliente_id:
+            print("❌ No se pudo encontrar el cliente por nombre.")
+            return None
+
+        update_payload = {
+            "Id": cliente_id,
+            "sparse": True,
+            "PrimaryEmailAddr": {"Address": correo}
+        }
+
+        update_url = f"{base_url}/customer"
+        update_r = requests.post(update_url, headers=headers, json=update_payload)
+
+        if update_r.status_code == 200:
+            print("✅ Cliente actualizado con correo.")
             return cliente_id
         else:
-            print("❌ El cliente existe por nombre pero no tiene correo asignado.")
+            print("❌ Falló al actualizar cliente existente:", update_r.text)
             return None
 
     print("❌ Error creando cliente:", r.text)
     return None
+
+
+    print("❌ Error creando cliente:", r.text)
+    return None
+
+def buscar_cliente_por_nombre(nombre, base_url, headers):
+    query = f"SELECT Id, DisplayName FROM Customer WHERE DisplayName = '{nombre}'"
+    encoded_query = quote(query)
+    url = f"{base_url}/query?query={encoded_query}"
+
+    r = requests.get(url, headers=headers)
+    if r.status_code == 200:
+        customers = r.json().get("QueryResponse", {}).get("Customer", [])
+        if customers:
+            return customers[0].get("Id")
+
+    print("❌ Error buscando cliente por nombre:", r.text)
+    return None
+
 
