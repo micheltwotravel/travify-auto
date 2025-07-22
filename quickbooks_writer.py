@@ -180,12 +180,12 @@ def crear_cliente_si_no_existe(facturacion, base_url, headers):
     nombre = facturacion.get("1A", "Cliente Desconocido")
     correo = facturacion.get("2A", "correo@ejemplo.com")
 
-    # 1️⃣ Buscar cliente por email
+    # 1️⃣ Buscar cliente por correo
     cliente_id = buscar_cliente_por_email(correo, base_url, headers)
     if cliente_id:
         return cliente_id
 
-    # 2️⃣ Si no existe, lo crea
+    # 2️⃣ Crear cliente si no existe
     payload = {
         "DisplayName": nombre,
         "PrimaryEmailAddr": {"Address": correo}
@@ -194,11 +194,17 @@ def crear_cliente_si_no_existe(facturacion, base_url, headers):
     r = requests.post(f"{base_url}/customer", headers=headers, json=payload)
 
     if r.status_code == 200:
+        print("✅ Cliente creado con éxito.")
         return r.json().get("Customer", {}).get("Id")
 
     elif r.status_code == 400 and "Duplicate Name Exists" in r.text:
-        print("⚠️ Cliente ya existe, buscando ID...")
-        return buscar_cliente_por_email(correo, base_url, headers)
+        print("⚠️ Nombre ya existe. Buscando por correo nuevamente...")
+        cliente_id = buscar_cliente_por_email(correo, base_url, headers)
+        if cliente_id:
+            return cliente_id
+        else:
+            print("❌ El cliente existe por nombre pero no tiene correo asignado.")
+            return None
 
     print("❌ Error creando cliente:", r.text)
     return None
