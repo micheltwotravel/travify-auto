@@ -174,6 +174,16 @@ async def slack_events(req: Request):
                 escribir_en_google_sheets(data)
                 resultado = crear_invoice_en_quickbooks(data)
 
+                if not resultado:
+                    await session.post("https://slack.com/api/chat.postMessage", headers={
+                        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                        "Accept": "application/json; charset=utf-8"
+                    }, json={
+                        "channel": channel_id,
+                        "text": "⚠️ No se pudo generar la factura. Verifica si QuickBooks está conectado correctamente."
+                    })
+                    return {"error": "Factura no generada"}
+
                 nombre = facturacion.get("1A", "Cliente desconocido")
                 fecha_inicio = facturacion.get("3A", "Fecha inicio")
                 fecha_fin = facturacion.get("4A", "Fecha fin")
@@ -275,3 +285,6 @@ async def facturar(request: Request):
         data = await request.json()
         resultado = crear_invoice_en_quickbooks(data)
         return {"ok": True, "resultado": resultado}
+    except Exception as e:
+        print("❌ Error en /facturar:", e)
+        return {"ok": False, "error": str(e)}
