@@ -58,7 +58,7 @@ def refrescar_token():
 
 
 def buscar_cliente_por_email(email, base_url, headers):
-    query = f"select * from Customer where PrimaryEmailAddr.Address = '{email}'"
+    query = f"select * from Customer where PrimaryEmailAddr = '{email}'"
     url = f"{base_url}/query?query={query}"
     r = requests.get(url, headers=headers)
 
@@ -67,7 +67,6 @@ def buscar_cliente_por_email(email, base_url, headers):
         if customers:
             return customers[0].get("Id")
 
-    # Si falló por autenticación, intenta refrescar el token
     if r.status_code == 401 or "AuthenticationFailed" in r.text:
         print("🔁 Token expirado. Refrescando...")
         tokens = refrescar_token()
@@ -82,6 +81,7 @@ def buscar_cliente_por_email(email, base_url, headers):
 
     print("❌ Error buscando cliente por correo:", r.text)
     return None
+
 
 
 def crear_cliente_si_no_existe(facturacion, base_url, headers):
