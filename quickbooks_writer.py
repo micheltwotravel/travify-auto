@@ -11,25 +11,14 @@ def cargar_tokens():
         print("⚠️ No se encontró quickbooks_token.json")
         return None
 
-ACCESS_TOKEN = tokens["access_token"]
-REALM_ID = tokens["realm_id"]
-
-QUICKBOOKS_BASE_URL = f"https://quickbooks.api.intuit.com/v3/company/{REALM_ID}"
-
-HEADERS = {
-    "Authorization": f"Bearer {ACCESS_TOKEN}",
-    "Accept": "application/json",
-    "Content-Type": "application/json"
-}
-
-def obtener_cliente_id_por_correo(correo):
+def obtener_cliente_id_por_correo(correo, base_url, headers):
     query = f"select * from Customer where PrimaryEmailAddr = '{correo}'"
-    url = f"{QUICKBOOKS_BASE_URL}/query?query={requests.utils.quote(query)}"
-    r = requests.get(url, headers=HEADERS)
+    url = f"{base_url}/query?query={requests.utils.quote(query)}"
+    r = requests.get(url, headers=headers)
     clientes = r.json().get("QueryResponse", {}).get("Customer", [])
     return clientes[0]["Id"] if clientes else None
 
-def crear_cliente_si_no_existe(facturacion):
+def crear_cliente_si_no_existe(facturacion, base_url, headers):
     nombre = facturacion.get("1A", "Cliente Desconocido")
     correo = facturacion.get("2A", "correo@ejemplo.com")
 
@@ -38,26 +27,40 @@ def crear_cliente_si_no_existe(facturacion):
         "PrimaryEmailAddr": {"Address": correo}
     }
 
-    r = requests.post(f"{QUICKBOOKS_BASE_URL}/customer", headers=HEADERS, json=payload)
+    r = requests.post(f"{base_url}/customer", headers=headers, json=payload)
     return r.json().get("Customer", {}).get("Id")
 
 def obtener_item_id(codigo):
-    # Esto es manual. Podrías mapear códigos con Item IDs reales si quieres.
-    return codigo
+    return codigo  # Reemplazar por mapeo real si lo tienes
 
-def crear_invoice_api_call(invoice_data):
-    r = requests.post(f"{QUICKBOOKS_BASE_URL}/invoice", headers=HEADERS, json=invoice_data)
+def crear_invoice_api_call(invoice_data, base_url, headers):
+    r = requests.post(f"{base_url}/invoice", headers=headers, json=invoice_data)
     return r.json()
 
 def crear_invoice_en_quickbooks(data):
+    tokens = cargar_tokens()
+    if not tokens:
+        print("🚫 No se pudo cargar el token. Conecta QuickBooks primero.")
+        return
+
+    access_token = tokens["access_token"]
+    realm_id = tokens["realm_id"]
+
+    base_url = f"https://quickbooks.api.intuit.com/v3/company/{realm_id}"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+
     codigos = data["codigos_detectados"]
     facturacion = data["facturacion"]
 
     correo = facturacion.get("2A", "correo@ejemplo.com")
-    cliente_id = obtener_cliente_id_por_correo(correo)
+    cliente_id = obtener_cliente_id_por_correo(correo, base_url, headers)
 
     if not cliente_id:
-        cliente_id = crear_cliente_si_no_existe(facturacion)
+        cliente_id = crear_cliente_si_no_existe(facturacion, base_url, headers)
 
     line_items = []
     for servicio in codigos:
@@ -77,6 +80,4 @@ def crear_invoice_en_quickbooks(data):
         "Line": line_items
     }
 
-    return crear_invoice_api_call(invoice_data)
-
-
+    return crear_invoice_api_call(invoice_data, base_url, headers)
