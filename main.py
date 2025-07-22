@@ -275,6 +275,47 @@ async def facturar(request: Request):
         data = await request.json()
         resultado = crear_invoice_en_quickbooks(data)
         return {"ok": True, "resultado": resultado}
+
+
+def refrescar_token():
+    try:
+        with open("quickbooks_token.json", "r") as f:
+            tokens = json.load(f)
+    except FileNotFoundError:
+        print("❌ No hay archivo de tokens")
+        return None
+
+    refresh_token = tokens.get("refresh_token")
+    client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
+    client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
+
+    token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    auth = (client_id, client_secret)
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token
+    }
+
+    r = requests.post(token_url, headers=headers, auth=auth, data=data)
+
+    if r.status_code != 200:
+        print("❌ Falló el refresh:", r.text)
+        return None
+
+    nuevos_tokens = r.json()
+    tokens["access_token"] = nuevos_tokens.get("access_token")
+    tokens["refresh_token"] = nuevos_tokens.get("refresh_token")
+
+    with open("quickbooks_token.json", "w") as f:
+        json.dump(tokens, f)
+
+    print("🔁 Token actualizado exitosamente")
+    return tokens
+
     except Exception as e:
         traceback.print_exc()
         return {"ok": False, "error": str(e)}
