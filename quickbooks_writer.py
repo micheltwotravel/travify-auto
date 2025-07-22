@@ -80,7 +80,7 @@ def crear_invoice_en_quickbooks(data):
         "Line": line_items
     }
 
-       resultado = crear_invoice_api_call(invoice_data, base_url, headers)
+    resultado = crear_invoice_api_call(invoice_data, base_url, headers)
 
     invoice_id = resultado.get("Invoice", {}).get("Id")
     doc_number = resultado.get("Invoice", {}).get("DocNumber")
@@ -93,3 +93,4 @@ def crear_invoice_en_quickbooks(data):
         "invoice_url": invoice_url,
         "detalle": resultado
     }
+
