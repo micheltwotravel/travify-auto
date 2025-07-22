@@ -37,6 +37,7 @@ def crear_invoice_api_call(invoice_data, base_url, headers):
     r = requests.post(f"{base_url}/invoice", headers=headers, json=invoice_data)
     return r.json()
 
+
 def crear_invoice_en_quickbooks(data):
     tokens = cargar_tokens()
     if not tokens:
@@ -45,7 +46,6 @@ def crear_invoice_en_quickbooks(data):
 
     access_token = tokens["access_token"]
     realm_id = tokens["realm_id"]
-
     base_url = f"https://quickbooks.api.intuit.com/v3/company/{realm_id}"
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -82,6 +82,19 @@ def crear_invoice_en_quickbooks(data):
 
     resultado = crear_invoice_api_call(invoice_data, base_url, headers)
 
+    # 🔁 Si el token expiró, intentamos refrescar y reintentar 1 vez
+    if resultado.get("Fault", {}).get("Error", [{}])[0].get("Message") == "Token expired":
+        print("🔁 Token expirado. Refrescando y reintentando...")
+        tokens = refrescar_token()
+        if not tokens:
+            return {"error": "No se pudo refrescar el token."}
+
+        access_token = tokens["access_token"]
+        realm_id = tokens["realm_id"]
+        base_url = f"https://quickbooks.api.intuit.com/v3/company/{realm_id}"
+        headers["Authorization"] = f"Bearer {access_token}"
+        resultado = crear_invoice_api_call(invoice_data, base_url, headers)
+
     invoice_id = resultado.get("Invoice", {}).get("Id")
     doc_number = resultado.get("Invoice", {}).get("DocNumber")
     invoice_url = f"https://app.qbo.intuit.com/app/invoice?txnId={invoice_id}" if invoice_id else "No disponible"
@@ -93,4 +106,42 @@ def crear_invoice_en_quickbooks(data):
         "invoice_url": invoice_url,
         "detalle": resultado
     }
+def refrescar_token():
+    try:
+        with open("quickbooks_token.json", "r") as f:
+            tokens = json.load(f)
+    except FileNotFoundError:
+        print("❌ No hay archivo de tokens")
+        return None
+
+    refresh_token = tokens.get("refresh_token")
+    client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
+    client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
+
+    token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    auth = (client_id, client_secret)
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token
+    }
+
+    r = requests.post(token_url, headers=headers, auth=auth, data=data)
+
+    if r.status_code != 200:
+        print("❌ Falló el refresh:", r.text)
+        return None
+
+    nuevos_tokens = r.json()
+    tokens["access_token"] = nuevos_tokens.get("access_token")
+    tokens["refresh_token"] = nuevos_tokens.get("refresh_token")
+
+    with open("quickbooks_token.json", "w") as f:
+        json.dump(tokens, f)
+
+    print("🔁 Token actualizado exitosamente")
+    return tokens
 
