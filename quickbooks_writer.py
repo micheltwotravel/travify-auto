@@ -2,7 +2,8 @@ import os
 import requests
 import json
 from urllib.parse import quote
-from servicio_a_id import servicio_a_id
+from codigo_mapper import obtener_item_id_desde_codigo
+
 
 # Cargar tokens desde el archivo generado en /callback
 def cargar_tokens():
@@ -236,5 +237,4 @@ def crear_cliente_si_no_existe(facturacion, base_url, headers):
     print("❌ Error creando cliente:", r.text)
     return None
 
-def obtener_item_id(nombre_servicio):
-    return servicio_a_id.get(nombre_servicio, "1")
+item_id = obtener_item_id_desde_codigo("CD011")
