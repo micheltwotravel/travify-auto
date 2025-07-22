@@ -5,7 +5,12 @@ import json
 # Cargar tokens desde el archivo generado en /callback
 def cargar_tokens():
     try:
-        with open("quickbooks_token.json", "r") as f:
+        # Intentar leer primero desde /tmp (token refrescado)
+        if os.path.exists("/tmp/quickbooks_token.json"):
+            with open("/tmp/quickbooks_token.json", "r") as f:
+                return json.load(f)
+        # Si no existe, leer desde el Secret File de Render
+        with open("/etc/secrets/quickbooks_token.json", "r") as f:
             return json.load(f)
     except FileNotFoundError:
         print("⚠️ No se encontró quickbooks_token.json")
@@ -13,10 +18,11 @@ def cargar_tokens():
 
 def refrescar_token():
     try:
-        with open("quickbooks_token.json", "r") as f:
+        # Cargar desde el secret original
+        with open("/etc/secrets/quickbooks_token.json", "r") as f:
             tokens = json.load(f)
     except FileNotFoundError:
-        print("❌ No hay archivo de tokens")
+        print("❌ No hay archivo de tokens en /etc/secrets/")
         return None
 
     refresh_token = tokens.get("refresh_token")
@@ -43,11 +49,13 @@ def refrescar_token():
     tokens["access_token"] = nuevos_tokens.get("access_token")
     tokens["refresh_token"] = nuevos_tokens.get("refresh_token")
 
-    with open("quickbooks_token.json", "w") as f:
+    # Guardar los nuevos tokens en un archivo temporal
+    with open("/tmp/quickbooks_token.json", "w") as f:
         json.dump(tokens, f)
 
-    print("🔁 Token actualizado exitosamente")
+    print("🔁 Token actualizado exitosamente (guardado en /tmp)")
     return tokens
+
 
 def obtener_cliente_id_por_correo(correo, base_url, headers):
     query = f"select * from Customer where PrimaryEmailAddr = '{correo}'"
