@@ -178,7 +178,13 @@ async def slack_events(req: Request):
                 fecha_inicio = facturacion.get("3A", "Fecha inicio")
                 fecha_fin = facturacion.get("4A", "Fecha fin")
                 servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in codigos])
-                factura_url = resultado.get("invoice_url", "No disponible")
+
+                # Obtener link real de la factura si está disponible
+                factura_url = resultado.get("invoice_url") or resultado.get("detalle", {}).get("Invoice", {}).get("Id")
+                if factura_url and factura_url != "No disponible":
+                    factura_url = f"https://app.qbo.intuit.com/app/invoice?txnId={factura_url}"
+                else:
+                    factura_url = "No disponible"
 
                 mensaje = (
                     f"🧾 Factura generada en QuickBooks\n"
@@ -197,6 +203,7 @@ async def slack_events(req: Request):
                     "text": mensaje
                 })
                 return {"ok": True}
+
 
 @app.get("/")
 def root():
