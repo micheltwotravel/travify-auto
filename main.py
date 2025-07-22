@@ -167,18 +167,21 @@ async def slack_events(req: Request):
                 }
 
                 escribir_en_google_sheets(data)
+                resultado = crear_invoice_en_quickbooks(data)
 
                 nombre = facturacion.get("1A", "Cliente desconocido")
                 fecha_inicio = facturacion.get("3A", "Fecha inicio")
                 fecha_fin = facturacion.get("4A", "Fecha fin")
                 servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in codigos])
+                factura_url = resultado.get("invoice_url", "No disponible")
 
                 mensaje = (
-                    f"Servicios detectados correctamente para {nombre}\n"
-                    f"Fecha de inicio: {fecha_inicio}\n"
-                    f"Fecha de fin: {fecha_fin}\n\n"
-                    f"{servicios}\n\n"
-                    f"Gracias. Enviando la información al equipo de finanzas."
+                    f"🧾 Factura generada en QuickBooks\n"
+                    f"👤 Cliente: {nombre}\n"
+                    f"📅 Desde: {fecha_inicio} hasta {fecha_fin}\n"
+                    f"💼 Servicios:\n{servicios}\n\n"
+                    f"🔗 Ver factura: {factura_url}\n\n"
+                    f"✅ Enviado al equipo de finanzas."
                 )
 
                 await session.post("https://slack.com/api/chat.postMessage", headers={
@@ -187,7 +190,7 @@ async def slack_events(req: Request):
                 }, json={
                     "channel": channel_id,
                     "text": mensaje
-                    })
+                })
                 return {"ok": True}
 
 @app.get("/")
