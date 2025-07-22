@@ -56,9 +56,8 @@ def refrescar_token():
     print("🔁 Token actualizado exitosamente (guardado en /tmp)")
     return tokens
 
-
 def buscar_cliente_por_email(email, base_url, headers):
-    query = f"select * from Customer where PrimaryEmailAddr = '{email}'"
+    query = f"select Id, DisplayName, PrimaryEmailAddr from Customer where PrimaryEmailAddr.Address = '{email}'"
     url = f"{base_url}/query?query={query}"
     r = requests.get(url, headers=headers)
 
@@ -82,22 +81,6 @@ def buscar_cliente_por_email(email, base_url, headers):
     print("❌ Error buscando cliente por correo:", r.text)
     return None
 
-def buscar_cliente_por_email(email, base_url, headers):
-    # Recuperamos todos los clientes y comparamos el correo en Python
-    query = "select Id, DisplayName, PrimaryEmailAddr from Customer"
-    url = f"{base_url}/query?query={query}"
-    r = requests.get(url, headers=headers)
-
-    if r.status_code == 200:
-        customers = r.json().get("QueryResponse", {}).get("Customer", [])
-        for customer in customers:
-            customer_email = customer.get("PrimaryEmailAddr", {}).get("Address")
-            if customer_email == email:
-                return customer.get("Id")
-    else:
-        print("❌ Error buscando cliente:", r.text)
-    
-    return None
 
 def obtener_item_id(codigo):
     return codigo  # puedes hacer un mapeo real aquí
@@ -189,3 +172,31 @@ def crear_invoice_en_quickbooks(data):
         "invoice_url": invoice_url,
         "detalle": resultado
     }
+
+def crear_cliente_si_no_existe(facturacion, base_url, headers):
+    nombre = facturacion.get("1A", "Cliente Desconocido")
+    correo = facturacion.get("2A", "correo@ejemplo.com")
+
+    # 1️⃣ Buscar cliente por email
+    cliente_id = buscar_cliente_por_email(correo, base_url, headers)
+    if cliente_id:
+        return cliente_id
+
+    # 2️⃣ Si no existe, lo crea
+    payload = {
+        "DisplayName": nombre,
+        "PrimaryEmailAddr": {"Address": correo}
+    }
+
+    r = requests.post(f"{base_url}/customer", headers=headers, json=payload)
+
+    if r.status_code == 200:
+        return r.json().get("Customer", {}).get("Id")
+
+    elif r.status_code == 400 and "Duplicate Name Exists" in r.text:
+        print("⚠️ Cliente ya existe, buscando ID...")
+        return buscar_cliente_por_email(correo, base_url, headers)
+
+    print("❌ Error creando cliente:", r.text)
+    return None
+
