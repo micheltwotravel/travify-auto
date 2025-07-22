@@ -82,35 +82,22 @@ def buscar_cliente_por_email(email, base_url, headers):
     print("❌ Error buscando cliente por correo:", r.text)
     return None
 
-
-
-def crear_cliente_si_no_existe(facturacion, base_url, headers):
-    nombre = facturacion.get("1A", "Cliente Desconocido")
-    correo = facturacion.get("2A", "correo@ejemplo.com")
-
-    # Primero intenta buscar el cliente por correo
-    cliente_id = buscar_cliente_por_email(correo, base_url, headers)
-    if cliente_id:
-        return cliente_id  # Ya existe
-
-    # Si no existe, intenta crearlo
-    payload = {
-        "DisplayName": nombre,
-        "PrimaryEmailAddr": {"Address": correo}
-    }
-
-    r = requests.post(f"{base_url}/customer", headers=headers, json=payload)
+def buscar_cliente_por_email(email, base_url, headers):
+    # Recuperamos todos los clientes y comparamos el correo en Python
+    query = "select Id, DisplayName, PrimaryEmailAddr from Customer"
+    url = f"{base_url}/query?query={query}"
+    r = requests.get(url, headers=headers)
 
     if r.status_code == 200:
-        return r.json().get("Customer", {}).get("Id")
-
-    elif r.status_code == 400 and "Duplicate Name Exists" in r.text:
-        print("⚠️ Cliente ya existe, buscando ID...")
-        return buscar_cliente_por_email(correo, base_url, headers)
-
-    print("❌ Error creando cliente:", r.text)
+        customers = r.json().get("QueryResponse", {}).get("Customer", [])
+        for customer in customers:
+            customer_email = customer.get("PrimaryEmailAddr", {}).get("Address")
+            if customer_email == email:
+                return customer.get("Id")
+    else:
+        print("❌ Error buscando cliente:", r.text)
+    
     return None
-
 
 def obtener_item_id(codigo):
     return codigo  # puedes hacer un mapeo real aquí
