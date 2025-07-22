@@ -134,12 +134,22 @@ def crear_invoice_en_quickbooks(data):
         "Content-Type": "application/json"
     }
 
+    # Validar si el token ya está expirado antes de cualquier acción
+    prueba_url = f"{base_url}/companyinfo/{realm_id}"
+    r = requests.get(prueba_url, headers=headers)
+    if r.status_code == 401 or "AuthenticationFailed" in r.text:
+        print("🔁 Token expirado antes de empezar. Refrescando...")
+        tokens = refrescar_token()
+        if not tokens:
+            return None
+        access_token = tokens["access_token"]
+        headers["Authorization"] = f"Bearer {access_token}"
+
     codigos = data.get("codigos_detectados", [])
     facturacion = data.get("facturacion", {})
 
     correo = facturacion.get("2A", "correo@ejemplo.com")
     cliente_id = buscar_cliente_por_email(correo, base_url, headers)
-
 
     if not cliente_id:
         cliente_id = crear_cliente_si_no_existe(facturacion, base_url, headers)
@@ -168,9 +178,9 @@ def crear_invoice_en_quickbooks(data):
 
     resultado = crear_invoice_api_call(invoice_data, base_url, headers)
 
-    # Token expirado → intentar refrescar
+    # Si falló porque el token expiró, volver a intentar con token nuevo
     if resultado.get("Fault", {}).get("Error", [{}])[0].get("Message") == "Token expired":
-        print("🔁 Token expirado. Refrescando...")
+        print("🔁 Token expirado al facturar. Refrescando...")
         tokens = refrescar_token()
         if not tokens:
             return None
