@@ -289,9 +289,3 @@ async def facturar(request: Request):
         print("❌ Error en /facturar:", e)
         return {"ok": False, "error": str(e)}
         
-if respuesta and respuesta.get("success"):
-    invoice_url = respuesta["invoice_url"]
-    slack_client.chat_postMessage(
-        channel=canal_id,
-        text=f"✅ Factura creada para *{nombre}*:\n<{invoice_url}>"
-    )
