@@ -69,48 +69,53 @@ def extraer_texto_pdf_bytes(pdf_bytes):
         texto_total += texto + "\n"
     return texto_total
 
-@app.post("/upload/")
-async def upload_pdf(file: UploadFile = File(...)):
-    try:
-        contents = await file.read()
-        with open("temp.pdf", "wb") as f:
-            f.write(contents)
+@app.api_route("/callback", methods=["GET", "POST"])
+async def quickbooks_callback(request: Request):
+    if request.method == "GET":
+        params = request.query_params
+    else:
+        params = await request.form()
 
-        doc = fitz.open("temp.pdf")
-        texto = "".join([page.get_text() for page in doc])
+    code = params.get("code")
+    realm_id = params.get("realmId")
 
-        # Extraer códigos con valores: [XX000][123]
-        matches = re.findall(r"\[([A-Z]{2}\d{3})\](?:\[(\d+)\])?", texto)
-        codigos_detectados = []
-        for codigo, valor in matches:
-            if valor:
-                codigos_detectados.append({
-                    "codigo": codigo,
-                    "valor": int(valor)
-                })
+    token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+    client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
+    client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
+    redirect_uri = "https://travify-api.onrender.com/callback"
 
-        # Extraer información de facturación
-        facturacion = {}
-        for key in ["1A", "2A", "3A", "4A"]:
-            match = re.search(rf"\[{key}\]\[([^\[\]\n]+)\]", texto)
-            if match:
-                facturacion[key] = match.group(1).strip()
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
 
-        if not codigos_detectados:
-            return {"ok": False, "msg": "No se detectaron códigos con valores."}
+    auth = (client_id, client_secret)
 
-        data = {
-            "codigos_detectados": codigos_detectados,
-            "facturacion": facturacion
-        }
+    data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": redirect_uri
+    }
 
-        resultado = crear_invoice_en_quickbooks(data)
-        return {"ok": True, "mensaje": "Factura enviada a QuickBooks", "resultado": resultado}
+    response = requests.post(token_url, headers=headers, auth=auth, data=data)
 
-    except Exception as e:
-        traceback.print_exc()
-        return {"ok": False, "error": str(e)}
+    if response.status_code != 200:
+        return {"error": "Failed to exchange token", "details": response.text}
 
+    tokens = response.json()
+
+    token_data = {
+        "access_token": tokens.get("access_token"),
+        "refresh_token": tokens.get("refresh_token"),
+        "realm_id": realm_id
+    }
+
+    print("📦 TOKENS:", token_data)
+
+    with open("quickbooks_token.json", "w") as f:
+        json.dump(token_data, f)
+
+    return {"ok": True, "msg": "Tokens guardados exitosamente"}
 
 @app.post("/slack/events")
 async def slack_events(req: Request):
