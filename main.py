@@ -51,26 +51,24 @@ def extraer_codigos_y_factura(texto):
     codigos = []
     facturacion = {}
 
-    # Extraer códigos como [TR046][150]
     matches = re.findall(r"\[([A-Z]{2}\d{3})\]\s*\[?(\d+)?\]?", texto)
     for codigo, valor in matches:
-        if valor:
-            codigos.append({"codigo": codigo, "valor": int(valor)})
+        codigos.append({
+            "codigo": codigo,
+            "valor": int(valor) if valor else None  # ← permite que sea None
+        })
 
-    # Extraer facturación como [1A] [Conrad Bracht]
     for campo in ["1A", "2A", "3A", "4A"]:
         patron = re.search(rf"\[{campo}\]\s*\[([^\]]+)\]", texto)
-        if patron:
-            facturacion[campo] = patron.group(1)
-        else:
-            facturacion[campo] = {
-                "1A": "Cliente desconocido",
-                "2A": "correo@ejemplo.com",
-                "3A": "Fecha inicio",
-                "4A": "Fecha fin"
-            }[campo]
+        facturacion[campo] = patron.group(1) if patron else {
+            "1A": "Cliente desconocido",
+            "2A": "correo@ejemplo.com",
+            "3A": "Fecha inicio",
+            "4A": "Fecha fin"
+        }[campo]
 
     return codigos, facturacion
+
 
 
 def extraer_texto_pdf_bytes(pdf_bytes):
@@ -200,8 +198,12 @@ async def slack_events(req: Request):
                 nombre = facturacion.get("1A", "Cliente desconocido")
                 fecha_inicio = facturacion.get("3A", "Fecha inicio")
                 fecha_fin = facturacion.get("4A", "Fecha fin")
-                servicios = "\n".join([f'{s["codigo"]}: ${s["valor"]}' for s in codigos])
-
+                servicios = "\n".join([
+                    f'{s["codigo"]}: ${s["valor"]}' if s["valor"] is not None else f'{s["codigo"]}: (sin valor)'
+                    for s in codigos
+                ])
+                    
+                    
                 # Obtener link real de la factura si está disponible
                 factura_url = resultado.get("invoice_url") or resultado.get("detalle", {}).get("Invoice", {}).get("Id")
                 if factura_url and factura_url != "No disponible":
