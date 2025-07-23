@@ -50,14 +50,28 @@ app.add_middleware(
 def extraer_codigos_y_factura(texto):
     codigos = []
     facturacion = {}
-    matches = re.findall(r"\[([A-Z]{2}\d{3})\](?:\[(\d+)\])?", texto)
+
+    # Extraer códigos como [TR046][150]
+    matches = re.findall(r"\[([A-Z]{2}\d{3})\]\s*\[?(\d+)?\]?", texto)
     for codigo, valor in matches:
         if valor:
             codigos.append({"codigo": codigo, "valor": int(valor)})
-    patron_factura = re.findall(r"\[(\dA)\]\[(.*?)\]", texto)
-    for campo, valor in patron_factura:
-        facturacion[campo] = valor
+
+    # Extraer facturación como [1A] [Conrad Bracht]
+    for campo in ["1A", "2A", "3A", "4A"]:
+        patron = re.search(rf"\[{campo}\]\s*\[([^\]]+)\]", texto)
+        if patron:
+            facturacion[campo] = patron.group(1)
+        else:
+            facturacion[campo] = {
+                "1A": "Cliente desconocido",
+                "2A": "correo@ejemplo.com",
+                "3A": "Fecha inicio",
+                "4A": "Fecha fin"
+            }[campo]
+
     return codigos, facturacion
+
 
 def extraer_texto_pdf_bytes(pdf_bytes):
     texto_total = ""
