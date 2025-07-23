@@ -2,7 +2,7 @@ codigo_a_servicio = {
     "AT001": "ATV",
     "BA002": "Baby Sitters",
     "BA003": "Bartender",
-    "BE004": "Beach Club",
+    "BE004": "Beach house",
     "BO005": "Boat Lunch Box",
     "BO006": "Bodyguard",
     "CA007": "Cake",
@@ -11,8 +11,8 @@ codigo_a_servicio = {
     "CB010": "Chef BBQ",
     "CD011": "Chef Dinner",
     "CL012": "Chef Lunch at the villa",
-    "CC013": "Chef catering",
-    "CO014": "Chef on board",
+    "CC013": "Chef Catering",
+    "CO014": "Chef On Board",
     "CL015": "Cleaning",
     "CO016": "Concierge",
     "CO017": "Cook",
@@ -46,16 +46,6 @@ codigo_a_servicio = {
     "TI045": "Tickets",
     "TR046": "Transport",
     "WR047": "Wrestling",
-    "YO048": "Yoga"
+    "YO048": "Yoga",
 }
 
-from servicio_a_id import servicio_a_id
-
-def obtener_item_id_desde_codigo(codigo):
-    nombre_servicio = codigo_a_servicio.get(codigo)
-    return servicio_a_id.get(nombre_servicio)
-
-
-def obtener_item_id_desde_codigo(codigo):
-    nombre_servicio = codigo_a_servicio.get(codigo)
-    return servicio_a_id.get(nombre_servicio, "1")  # "1" como fallback para pruebas
