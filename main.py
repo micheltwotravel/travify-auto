@@ -15,14 +15,13 @@ from sheet_writer import escribir_en_google_sheets
 from quickbooks_writer import crear_invoice_en_quickbooks
 
 
-# Carga token desde Render Secrets
 with open("/etc/secrets/slack_token", "r") as f:
     SLACK_BOT_TOKEN = f.read().strip()
 
-# Archivo donde se almacenan eventos procesados
+
 EVENTOS_FILE = "eventos_procesados.json"
 
-# Cargar eventos previos si existen
+
 if os.path.exists(EVENTOS_FILE):
     with open(EVENTOS_FILE, "r") as f:
         eventos_procesados = set(json.load(f))
@@ -269,10 +268,10 @@ async def quickbooks_callback(request: Request):
         "realm_id": realm_id
     }
 
-    # Mostrar en logs de Render
+    
     print("📦 TOKENS:", token_data)
 
-    # Guardar en archivo
+  
     with open("quickbooks_token.json", "w") as f:
         json.dump(token_data, f)
 
