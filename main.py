@@ -11,6 +11,26 @@ import traceback
 import urllib.parse
 import aiohttp
 
+NOMBRES_SERVICIOS = {
+    "TR046": "Transporte aeropuerto",
+    "CT009": "City tour",
+    "SE042": "Servicio especial",
+    "OS037": "Taller cigarros",
+    "MA031": "Masaje 1 hora",
+    "IV027": "Terapia IV",
+    "CD011": "Cena chef Niku",
+    "BE004": "Beach Club",
+    "BA003": "Bartender personal",
+    "CB010": "Chef BBQ villa",
+    "ND034": "Nightclub VIP",
+    "GR023": "Compras y abastecimiento",
+    "LD030": "Licores premium",
+    "DJ018": "DJ profesional",
+    "BO006": "Seguridad privada",
+    "SP044": "Spa y tratamientos",
+}
+
+
 from sheet_writer import escribir_en_google_sheets
 from quickbooks_writer import crear_invoice_en_quickbooks
 
@@ -199,15 +219,17 @@ async def slack_events(req: Request):
                 fecha_inicio = facturacion.get("3A", "Fecha inicio")
                 fecha_fin = facturacion.get("4A", "Fecha fin")
                 servicios = "\n".join([
-                    f'{s["codigo"]}: ${s["valor"]}' if s["valor"] is not None else f'{s["codigo"]}: (sin valor)'
+                    f'{s["codigo"]} – {NOMBRES_SERVICIOS.get(s["codigo"], "Servicio desconocido")}: ${s["valor"]}'
+                    if "valor" in s and s["valor"] is not None
+                    else f'{s["codigo"]} – {NOMBRES_SERVICIOS.get(s["codigo"], "Servicio desconocido")}: (sin valor)'
                     for s in codigos
                 ])
                     
                     
                 # Obtener link real de la factura si está disponible
-                factura_url = resultado.get("invoice_url") or resultado.get("detalle", {}).get("Invoice", {}).get("Id")
-                if factura_url and factura_url != "No disponible":
-                    factura_url = f"https://app.qbo.intuit.com/app/invoice?txnId={factura_url}"
+                invoice_id = resultado.get("invoice_id")
+                if invoice_id:
+                    factura_url = f"https://app.qbo.intuit.com/app/invoice?txnId={invoice_id}"
                 else:
                     factura_url = "No disponible"
 
