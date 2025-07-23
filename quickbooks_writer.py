@@ -2,7 +2,8 @@ import os
 import requests
 import json
 from urllib.parse import quote
-from codigo_mapper import codigo_a_servicio, obtener_item_id_desde_codigo
+from codigo_mapper import codigo_a_servicio
+
 
 
 # Cargar tokens desde el archivo generado en /callback
