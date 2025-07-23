@@ -174,7 +174,6 @@ def crear_invoice_api_call(invoice_data, base_url, headers):
     r = requests.post(f"{base_url}/invoice", headers=headers, json=invoice_data)
     return r.json()
 
-
 def crear_invoice_en_quickbooks(data):
     tokens = cargar_tokens()
     if not tokens:
@@ -215,7 +214,7 @@ def crear_invoice_en_quickbooks(data):
     line_items = []
     for item in codigos:
         codigo = item["codigo"]
-        valor = item["valor"]
+        valor = item.get("valor", 0) or 0  # ✅ Si es None o 0, se convierte en 0
 
         item_name = codigo_a_qb_id.get(codigo)
         if not item_name:
