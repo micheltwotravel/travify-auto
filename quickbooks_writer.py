@@ -140,7 +140,6 @@ def crear_cliente_si_no_existe(facturacion, base_url, headers):
     print("❌ Error creando cliente:", r.text)
     return None
 
-
 def obtener_item_id_desde_nombre(nombre):
     tokens = cargar_tokens()
     if not tokens:
@@ -149,6 +148,7 @@ def obtener_item_id_desde_nombre(nombre):
     access_token = tokens["access_token"]
     realm_id = tokens["realm_id"]
     base_url = f"https://quickbooks.api.intuit.com/v3/company/{realm_id}"
+    
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Accept": "application/json"
@@ -165,7 +165,7 @@ def obtener_item_id_desde_nombre(nombre):
         else:
             print(f"⚠️ No se encontró el ítem '{nombre}' en QuickBooks.")
     else:
-        print("❌ Error al buscar item:", r.text)
+        print(f"❌ Error al consultar el ítem '{nombre}':", r.text)
 
     return None
 
