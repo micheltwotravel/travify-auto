@@ -175,6 +175,13 @@ def crear_invoice_api_call(invoice_data, base_url, headers):
     return r.json()
 
 def crear_invoice_en_quickbooks(data):
+    """
+    Crea una factura en QuickBooks con líneas que incluyen 'Description'.
+    Requiere:
+      - data["codigos_detectados"]: lista de dicts {codigo, valor, descripcion?}
+      - data["facturacion"]: { "1A": nombre, "2A": email, "3A": fecha_ini, "4A": fecha_fin }
+    """
+    # ---------- Cargar tokens ----------
     tokens = cargar_tokens()
     if not tokens:
         print("🚫 No se pudo cargar el token. Conecta QuickBooks primero.")
@@ -190,6 +197,7 @@ def crear_invoice_en_quickbooks(data):
         "Content-Type": "application/json"
     }
 
+    # ---------- Chequeo de token ----------
     r = requests.get(f"{base_url}/companyinfo/{realm_id}", headers=headers)
     if r.status_code == 401 or "AuthenticationFailed" in r.text:
         print("🔁 Token expirado antes de empezar. Refrescando...")
@@ -199,41 +207,53 @@ def crear_invoice_en_quickbooks(data):
         access_token = tokens["access_token"]
         headers["Authorization"] = f"Bearer {access_token}"
 
-    codigos = data.get("codigos_detectados", [])
-    facturacion = data.get("facturacion", {})
+    # ---------- Datos de entrada ----------
+    codigos = data.get("codigos_detectados", []) or []
+    facturacion = data.get("facturacion", {}) or {}
 
     correo = facturacion.get("2A", "correo@ejemplo.com")
-    cliente_id = buscar_cliente_por_email(correo, base_url, headers)
+    txn_date = facturacion.get("3A")  # Fecha de inicio (opcional, formato YYYY-MM-DD)
+    # due_date = facturacion.get("4A")  # Si quisieras usarla como vencimiento
 
+    # ---------- Resolver cliente ----------
+    cliente_id = buscar_cliente_por_email(correo, base_url, headers)
     if not cliente_id:
         cliente_id = crear_cliente_si_no_existe(facturacion, base_url, headers)
         if not cliente_id:
             print("❌ No se pudo crear ni encontrar cliente.")
             return None
 
+    # ---------- Construir líneas ----------
     line_items = []
     for item in codigos:
-        codigo = item["codigo"]
-        valor = item.get("valor", 0) or 0  # ✅ Si es None o 0, se convierte en 0
+        codigo = item.get("codigo")
+        valor = item.get("valor", 0) or 0
+        descripcion = (item.get("descripcion") or "").strip()
+
+        if not codigo:
+            print("⚠️ Item sin 'codigo' → ignorado:", item)
+            continue
 
         item_name = codigo_a_qb_id.get(codigo)
         if not item_name:
-            print(f"❌ Código no reconocido o no mapeado: {codigo}")
+            print(f"❌ Código no mapeado: {codigo}")
             continue
 
         item_id = obtener_item_id_desde_nombre(item_name)
         if not item_id:
-            print(f"⚠️ Nombre no encontrado o sin ID en QuickBooks: {item_name}")
+            print(f"⚠️ Ítem QuickBooks no encontrado: {item_name} (codigo {codigo})")
             continue
 
+        # Log de control
+        print(f"QB line → {codigo} | {valor} | desc='{descripcion[:80]}'")
+
+        # Línea con Description
         line_items.append({
             "DetailType": "SalesItemLineDetail",
-            "Amount": valor,
+            "Amount": float(valor),
+            "Description": descripcion,            # ← AQUÍ VA LA DESCRIPCIÓN
             "SalesItemLineDetail": {
-                "ItemRef": {
-                    "value": item_id,
-                    "name": item_name
-                }
+                "ItemRef": {"value": item_id, "name": item_name}
             }
         })
 
@@ -241,22 +261,33 @@ def crear_invoice_en_quickbooks(data):
         print("⚠️ No se generó ningún ítem válido para la factura.")
         return None
 
+    # ---------- Payload de factura ----------
     invoice_data = {
         "CustomerRef": {"value": cliente_id},
         "Line": line_items
     }
+    # (Opcional) Fecha de la transacción
+    if txn_date:
+        invoice_data["TxnDate"] = txn_date  # QuickBooks espera 'YYYY-MM-DD'
 
+    # (Opcional) Nota general de factura
+    # invoice_data["CustomerMemo"] = {"value": f"Servicios según itinerario {txn_date or ''}".strip()}
+
+    # ---------- Crear factura ----------
     resultado = crear_invoice_api_call(invoice_data, base_url, headers)
 
-    if resultado.get("Fault", {}).get("Error", [{}])[0].get("Message") == "Token expired":
-        print("🔁 Token expirado al facturar. Refrescando...")
+    # Reintento si expiró token en medio de la llamada
+    fault = (resultado.get("Fault", {}).get("Error", [{}])[0] if isinstance(resultado, dict) else {})
+    if isinstance(fault, dict) and fault.get("Message") == "Token expired":
+        print("🔁 Token expirado al facturar. Refrescando y reintentando...")
         tokens = refrescar_token()
         if not tokens:
             return None
         headers["Authorization"] = f"Bearer {tokens['access_token']}"
         resultado = crear_invoice_api_call(invoice_data, base_url, headers)
 
-    if "Invoice" not in resultado:
+    # ---------- Validar respuesta ----------
+    if not isinstance(resultado, dict) or "Invoice" not in resultado:
         print("❌ Error creando factura:", resultado)
         return None
 
