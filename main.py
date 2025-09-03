@@ -31,7 +31,8 @@ NOMBRES_SERVICIOS = {
 }
 
 
-from sheet_writer import escribir_en_google_sheets
+from sheet_writer import escribir_raw_travify, escribir_logistica_min
+
 from quickbooks_writer import crear_invoice_en_quickbooks
 
 
@@ -69,10 +70,12 @@ app.add_middleware(
 
 def extraer_codigos_y_factura(texto):
     """
-    Extrae tuplas (codigo, valor, descripcion) + datos 1A..4A.
-    Regla de descripción:
-      - Si hay texto antes del primer '[' en la MISMA línea => usarlo.
-      - Si la línea tiene SOLO [COD][VALOR], usar la línea no vacía anterior como descripción.
+    Soporta:
+      <texto libre> [CODE][VALOR][DESCRIPCION]
+      <texto libre> [CODE][VALOR]
+      [CODE][VALOR]                   (usa la línea previa como descripción)
+    Prioridad: si viene [DESCRIPCION], se usa; si no, usa el texto a la izquierda (head);
+    si tampoco hay, usa la línea previa no vacía.
     """
     codigos = []
     facturacion = {}
@@ -84,44 +87,34 @@ def extraer_codigos_y_factura(texto):
         if line:
             prev_nonempty = line
 
-        # 1) Coincidencias en la MISMA línea: <desc> [CODE] [VAL]
-        #    Soporta "[BO005] [1774500]" con espacio, y "[MA031][1560000]" sin espacio.
-        m_iter = list(re.finditer(
-            r'^(?P<desc>.*?)\s*\[(?P<code>[A-Z]{2}\d{3})\]\s*(?:\[(?P<val>\d+)\])?',
+        # Caso con 2 o 3 corchetes en la MISMA línea
+        m = re.search(
+            r'^(?P<head>.*?)?\s*\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\](?:\s*\[(?P<desc>[^\]]+)\])?',
             line
-        ))
-        if m_iter:
-            # Puede haber varias ocurrencias por línea; procesamos todas
-            head_used = False
-            for m in m_iter:
-                desc = (m.group('desc') or '').strip(' -—:·')
-                code = m.group('code')
-                val  = m.group('val')
-                if not desc:
-                    # Si la parte previa está vacía, intentamos usar la línea previa
-                    # (esto cubre líneas que son solo [CODE][VAL])
-                    fallback = prev_nonempty if prev_nonempty != line else ""
-                    desc = fallback.strip(' -—:·')
-                codigos.append({
-                    "codigo": code,
-                    "valor": int(val) if val else None,
-                    "descripcion": desc or "Sin descripción"
-                })
-                head_used = True
-            continue
-
-        # 2) Líneas que contienen solo [CODE] [VAL] en cualquier posición
-        for m in re.finditer(r'\[(?P<code>[A-Z]{2}\d{3})\]\s*(?:\[(?P<val>\d+)\])?', line):
-            code = m.group('code'); val = m.group('val')
-            desc = prev_nonempty.strip(' -—:·')  # usar línea anterior
+        )
+        if m:
+            code = m.group('code')
+            val  = m.group('val')
+            desc = m.group('desc')
+            if not desc:
+                head = (m.group('head') or '').strip(' -—:·')
+                desc = head if head else prev_nonempty.strip(' -—:·')
             codigos.append({
                 "codigo": code,
                 "valor": int(val) if val else None,
-                "descripcion": desc or "Sin descripción"
+                "descripcion": (desc or "").strip()
+            })
+            continue
+
+        # Fallback: si aparecen [CODE][VAL] sin head en la línea
+        for mm in re.finditer(r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\]', line):
+            codigos.append({
+                "codigo": mm.group('code'),
+                "valor": int(mm.group('val')),
+                "descripcion": prev_nonempty.strip(' -—:·') or ""
             })
 
-    # 3) Campos de facturación [1A]..[4A]
-    #    (igual a tu versión anterior)
+    # Campos [1A]..[4A]
     for campo, defecto in [("1A","Cliente desconocido"),
                            ("2A","correo@ejemplo.com"),
                            ("3A","Fecha inicio"),
@@ -243,7 +236,8 @@ async def slack_events(req: Request):
                     "facturacion": facturacion
                 }
 
-                escribir_en_google_sheets(data)
+                escribir_raw_travify(data)     # (Travify/raw: detalle completo)
+                escribir_logistica_min(data)   # (Logística: Cliente / Descripción / Fecha)
                 resultado = crear_invoice_en_quickbooks(data)
 
                 if not resultado:
@@ -260,9 +254,9 @@ async def slack_events(req: Request):
                 fecha_inicio = facturacion.get("3A", "Fecha inicio")
                 fecha_fin = facturacion.get("4A", "Fecha fin")
                 servicios = "\n".join([
-                    f'{s["codigo"]} – {NOMBRES_SERVICIOS.get(s["codigo"], "Servicio desconocido")}: ${s["valor"]}'
-                    if "valor" in s and s["valor"] is not None
-                    else f'{s["codigo"]} – {NOMBRES_SERVICIOS.get(s["codigo"], "Servicio desconocido")}: (sin valor)'
+                    f'{s["codigo"]} – {s.get("descripcion","")} : ${s["valor"]}'
+                    if s.get("valor") is not None
+                    else f'{s["codigo"]} – {s.get("descripcion","")} : (sin valor)'
                     for s in codigos
                 ])
                     
@@ -367,4 +361,5 @@ async def facturar(request: Request):
         print("❌ Error en /facturar:", e)
         return {"ok": False, "error": str(e)}
         
+
 
