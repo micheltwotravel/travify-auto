@@ -305,50 +305,7 @@ def connect_to_quickbooks():
     )
     return RedirectResponse(auth_url)
 
-@app.get("/callback")
-async def quickbooks_callback(request: Request):
-    code = request.query_params.get("code")
-    realm_id = request.query_params.get("realmId")
 
-    token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
-    client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
-    client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
-    redirect_uri = "https://travify-api.onrender.com/callback"
-
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-
-    auth = (client_id, client_secret)
-
-    data = {
-        "grant_type": "authorization_code",
-        "code": code,
-        "redirect_uri": redirect_uri
-    }
-
-    response = requests.post(token_url, headers=headers, auth=auth, data=data)
-
-    if response.status_code != 200:
-        return {"error": "Failed to exchange token", "details": response.text}
-
-    tokens = response.json()
-
-    token_data = {
-        "access_token": tokens.get("access_token"),
-        "refresh_token": tokens.get("refresh_token"),
-        "realm_id": realm_id
-    }
-
-    
-    print("📦 TOKENS:", token_data)
-
-  
-    with open("quickbooks_token.json", "w") as f:
-        json.dump(token_data, f)
-
-    return {"ok": True, "msg": "Tokens guardados exitosamente"}
 
 
 @app.post("/facturar")
@@ -361,5 +318,6 @@ async def facturar(request: Request):
         print("❌ Error en /facturar:", e)
         return {"ok": False, "error": str(e)}
         
+
 
 
