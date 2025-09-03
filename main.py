@@ -68,27 +68,68 @@ app.add_middleware(
 )
 
 def extraer_codigos_y_factura(texto):
+    """
+    Extrae tuplas (codigo, valor, descripcion) + datos 1A..4A.
+    Regla de descripción:
+      - Si hay texto antes del primer '[' en la MISMA línea => usarlo.
+      - Si la línea tiene SOLO [COD][VALOR], usar la línea no vacía anterior como descripción.
+    """
     codigos = []
     facturacion = {}
 
-    matches = re.findall(r"\[([A-Z]{2}\d{3})\]\s*\[?(\d+)?\]?", texto)
-    for codigo, valor in matches:
-        codigos.append({
-            "codigo": codigo,
-            "valor": int(valor) if valor else None  # ← permite que sea None
-        })
+    lines = [l.strip() for l in texto.splitlines()]
+    prev_nonempty = ""
 
-    for campo in ["1A", "2A", "3A", "4A"]:
+    for line in lines:
+        if line:
+            prev_nonempty = line
+
+        # 1) Coincidencias en la MISMA línea: <desc> [CODE] [VAL]
+        #    Soporta "[BO005] [1774500]" con espacio, y "[MA031][1560000]" sin espacio.
+        m_iter = list(re.finditer(
+            r'^(?P<desc>.*?)\s*\[(?P<code>[A-Z]{2}\d{3})\]\s*(?:\[(?P<val>\d+)\])?',
+            line
+        ))
+        if m_iter:
+            # Puede haber varias ocurrencias por línea; procesamos todas
+            head_used = False
+            for m in m_iter:
+                desc = (m.group('desc') or '').strip(' -—:·')
+                code = m.group('code')
+                val  = m.group('val')
+                if not desc:
+                    # Si la parte previa está vacía, intentamos usar la línea previa
+                    # (esto cubre líneas que son solo [CODE][VAL])
+                    fallback = prev_nonempty if prev_nonempty != line else ""
+                    desc = fallback.strip(' -—:·')
+                codigos.append({
+                    "codigo": code,
+                    "valor": int(val) if val else None,
+                    "descripcion": desc or "Sin descripción"
+                })
+                head_used = True
+            continue
+
+        # 2) Líneas que contienen solo [CODE] [VAL] en cualquier posición
+        for m in re.finditer(r'\[(?P<code>[A-Z]{2}\d{3})\]\s*(?:\[(?P<val>\d+)\])?', line):
+            code = m.group('code'); val = m.group('val')
+            desc = prev_nonempty.strip(' -—:·')  # usar línea anterior
+            codigos.append({
+                "codigo": code,
+                "valor": int(val) if val else None,
+                "descripcion": desc or "Sin descripción"
+            })
+
+    # 3) Campos de facturación [1A]..[4A]
+    #    (igual a tu versión anterior)
+    for campo, defecto in [("1A","Cliente desconocido"),
+                           ("2A","correo@ejemplo.com"),
+                           ("3A","Fecha inicio"),
+                           ("4A","Fecha fin")]:
         patron = re.search(rf"\[{campo}\]\s*\[([^\]]+)\]", texto)
-        facturacion[campo] = patron.group(1) if patron else {
-            "1A": "Cliente desconocido",
-            "2A": "correo@ejemplo.com",
-            "3A": "Fecha inicio",
-            "4A": "Fecha fin"
-        }[campo]
+        facturacion[campo] = patron.group(1) if patron else defecto
 
     return codigos, facturacion
-
 
 
 def extraer_texto_pdf_bytes(pdf_bytes):
@@ -326,3 +367,4 @@ async def facturar(request: Request):
         print("❌ Error en /facturar:", e)
         return {"ok": False, "error": str(e)}
         
+
