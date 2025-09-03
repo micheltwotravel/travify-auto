@@ -1,8 +1,9 @@
+# sheet_writer.py
 import json
 import gspread
 from google.oauth2.service_account import Credentials
 
-# IDs que me diste
+# IDs de tus dos hojas
 SHEET_ID_TRAVIFY   = "1uY7ifI73AoZ-aXF0EbJWa1sLIj0iihLo4oO6iUd34AE"
 SHEET_ID_LOGISTICA = "1km7hs-0r1ktkXh8csaiD20ZiU3k-nVg9zDiUmAAUQBI"
 
@@ -15,7 +16,7 @@ def _client():
 
 def _ws(sheet_id):
     sh = _client().open_by_key(sheet_id)
-    return sh.get_worksheet(0)  # primera pestaña
+    return sh.get_worksheet(0)
 
 def escribir_raw_travify(data):
     ws = _ws(SHEET_ID_TRAVIFY)
@@ -40,7 +41,7 @@ def escribir_logistica_min(data):
     codigos = data.get("codigos_detectados", []) or []
     factura = data.get("facturacion", {}) or {}
     cliente = factura.get("1A","")
-    fecha   = factura.get("3A","")  # usa 4A si prefieres fin
+    fecha   = factura.get("3A","")  # cambia a 4A si prefieres fin
     rows = []
     for it in codigos:
         rows.append([cliente, it.get("descripcion") or "", fecha])
