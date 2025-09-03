@@ -181,110 +181,159 @@ async def quickbooks_callback(request: Request):
         json.dump(token_data, f)
 
     return {"ok": True, "msg": "Tokens guardados exitosamente"}
+    
+import asyncio
+import aiohttp
+
+# --- REEMPLAZA TODO TU /slack/events POR ESTO ---
 
 @app.post("/slack/events")
 async def slack_events(req: Request):
     body = await req.json()
 
+    # 1) verificación inicial de Slack
     if "challenge" in body:
         return {"challenge": body["challenge"]}
 
-    event_id = body.get("event_id")
-    if event_id in eventos_procesados:
-        print(f"⚠️ Evento duplicado ignorado: {event_id}")
-        return {"ok": True}
-    guardar_evento(event_id)
+    # 2) responde INMEDIATO para evitar timeout de Slack (<3s)
+    asyncio.create_task(_procesar_evento_slack(body))
+    return {"ok": True}
 
-    event = body.get("event", {})
-    subtype = event.get("subtype")
 
-    if event.get("type") == "message" and subtype == "file_share":
-        if "files" not in event or not event["files"]:
-            print("⚠️ No se encontraron archivos en el evento Slack.")
-            return {"error": "No hay archivos"}
+async def _procesar_evento_slack(body: dict):
+    try:
+        event = body.get("event", {}) or {}
+        event_id = body.get("event_id")
+        if not event_id:
+            return
 
-        file_info = event["files"][0]
-        file_url = file_info["url_private_download"]
-        channel_id = event.get("channel") or event.get("channel_id")
+        # de-dup
+        if event_id in eventos_procesados:
+            print(f"⚠️ Evento duplicado ignorado: {event_id}")
+            return
+        guardar_evento(event_id)
 
+        etype   = event.get("type")
+        subtype = event.get("subtype")
+
+        # =========================
+        # Caso A) message.file_share
+        # =========================
+        if etype == "message" and subtype == "file_share":
+            files = event.get("files") or []
+            if not files:
+                print("⚠️ No se encontraron archivos en el evento Slack (message.file_share).")
+                return
+            file_url   = files[0].get("url_private_download")
+            channel_id = event.get("channel") or event.get("channel_id")
+            if not file_url:
+                print("⚠️ file_url vacío.")
+                return
+            await _procesar_pdf(file_url, channel_id)
+            return
+
+        # =========================
+        # Caso B) file_shared (evento raíz)
+        # =========================
+        if etype == "file_shared":
+            file_id   = event.get("file_id")
+            channel_id = event.get("channel_id") or event.get("channel")
+            if not file_id:
+                print("⚠️ file_id vacío en file_shared.")
+                return
+
+            async with aiohttp.ClientSession(headers={
+                "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                "Accept": "application/json; charset=utf-8"
+            }) as session:
+                # files.info para obtener la URL privada de descarga
+                async with session.post("https://slack.com/api/files.info", data={"file": file_id}) as r:
+                    info = await r.json()
+                    if not info.get("ok"):
+                        print("❌ files.info falló:", info)
+                        return
+                    file_url = info["file"].get("url_private_download")
+                    if not file_url:
+                        print("⚠️ No vino url_private_download en files.info.")
+                        return
+            await _procesar_pdf(file_url, channel_id)
+            return
+
+        print(f"ℹ️ Evento ignorado: type={etype} subtype={subtype}")
+
+    except Exception as e:
+        print("❌ Error en _procesar_evento_slack:", e)
+
+
+async def _procesar_pdf(file_url: str, channel_id: str | None):
+    """Descarga el PDF, extrae datos, escribe Sheets, crea factura y postea resultado."""
+    try:
         async with aiohttp.ClientSession(headers={
             "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
             "Accept": "application/json; charset=utf-8"
         }) as session:
             async with session.get(file_url) as resp:
                 if resp.status != 200:
-                    return {"error": "No se pudo descargar el archivo"}
+                    print("❌ No se pudo descargar el archivo:", resp.status)
+                    return
 
                 pdf_data = await resp.read()
 
                 if not pdf_data.startswith(b'%PDF'):
                     print("❌ El archivo descargado NO es un PDF válido.")
-                    await session.post("https://slack.com/api/chat.postMessage", headers={
-                        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-                        "Accept": "application/json; charset=utf-8"
-                    }, json={
-                        "channel": channel_id,
-                        "text": "❌ El archivo subido no es un PDF válido. Por favor intenta nuevamente con otro archivo."
-                    })
-                    return {"error": "Archivo no es PDF"}
+                    if channel_id:
+                        await session.post("https://slack.com/api/chat.postMessage", json={
+                            "channel": channel_id,
+                            "text": "❌ El archivo subido no es un PDF válido. Por favor intenta nuevamente con otro archivo."
+                        })
+                    return
 
+                # Extrae, escribe y factura
                 texto = extraer_texto_pdf_bytes(pdf_data)
                 codigos, facturacion = extraer_codigos_y_factura(texto)
+                data = {"codigos_detectados": codigos, "facturacion": facturacion}
 
-                data = {
-                    "codigos_detectados": codigos,
-                    "facturacion": facturacion
-                }
+                # Sheets
+                escribir_raw_travify(data)     # Detalle completo
+                escribir_logistica_min(data)   # Cliente / Descripción / Fecha
 
-                escribir_raw_travify(data)     # (Travify/raw: detalle completo)
-                escribir_logistica_min(data)   # (Logística: Cliente / Descripción / Fecha)
+                # QuickBooks
                 resultado = crear_invoice_en_quickbooks(data)
-
                 if not resultado:
-                    await session.post("https://slack.com/api/chat.postMessage", headers={
-                        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-                        "Accept": "application/json; charset=utf-8"
-                    }, json={
-                        "channel": channel_id,
-                        "text": "⚠️ No se pudo generar la factura. Verifica si QuickBooks está conectado correctamente."
-                    })
-                    return {"error": "Factura no generada"}
+                    if channel_id:
+                        await session.post("https://slack.com/api/chat.postMessage", json={
+                            "channel": channel_id,
+                            "text": "⚠️ No se pudo generar la factura. Verifica QuickBooks OAuth."
+                        })
+                    return
 
-                nombre = facturacion.get("1A", "Cliente desconocido")
+                # Mensaje de confirmación a Slack
+                nombre       = facturacion.get("1A", "Cliente desconocido")
                 fecha_inicio = facturacion.get("3A", "Fecha inicio")
-                fecha_fin = facturacion.get("4A", "Fecha fin")
+                fecha_fin    = facturacion.get("4A", "Fecha fin")
                 servicios = "\n".join([
                     f'{s["codigo"]} – {s.get("descripcion","")} : ${s["valor"]}'
                     if s.get("valor") is not None
                     else f'{s["codigo"]} – {s.get("descripcion","")} : (sin valor)'
                     for s in codigos
                 ])
-                    
-                    
-                # Obtener link real de la factura si está disponible
-                invoice_id = resultado.get("invoice_id")
-                if invoice_id:
-                    factura_url = f"https://app.qbo.intuit.com/app/invoice?txnId={invoice_id}"
-                else:
-                    factura_url = "No disponible"
+                factura_url = resultado.get("invoice_url", "No disponible")
 
-                mensaje = (
-                    f"🧾 Factura generada en QuickBooks\n"
-                    f"👤 Cliente: {nombre}\n"
-                    f"📅 Desde: {fecha_inicio} hasta {fecha_fin}\n"
-                    f"💼 Servicios:\n{servicios}\n\n"
-                    f"🔗 Ver factura: {factura_url}\n\n"
-                    f"✅ Enviado al equipo de finanzas."
-                )
+                if channel_id:
+                    await session.post("https://slack.com/api/chat.postMessage", json={
+                        "channel": channel_id,
+                        "text": (
+                            "🧾 Factura generada en QuickBooks\n"
+                            f"👤 Cliente: {nombre}\n"
+                            f"📅 Desde: {fecha_inicio} hasta {fecha_fin}\n"
+                            f"💼 Servicios:\n{servicios}\n\n"
+                            f"🔗 Ver factura: {factura_url}\n\n"
+                            "✅ Enviado al equipo de finanzas."
+                        )
+                    })
 
-                await session.post("https://slack.com/api/chat.postMessage", headers={
-                    "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-                    "Accept": "application/json; charset=utf-8"
-                }, json={
-                    "channel": channel_id,
-                    "text": mensaje
-                })
-                return {"ok": True}
+    except Exception as e:
+        print("❌ Error en _procesar_pdf:", e)
 
 
 @app.get("/")
@@ -318,6 +367,7 @@ async def facturar(request: Request):
         print("❌ Error en /facturar:", e)
         return {"ok": False, "error": str(e)}
         
+
 
 
 
