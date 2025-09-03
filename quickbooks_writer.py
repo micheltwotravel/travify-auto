@@ -226,30 +226,36 @@ def crear_invoice_en_quickbooks(data):
     # ---------- Construir líneas ----------
     line_items = []
     for item in codigos:
-    codigo = item.get("codigo")
-    valor = item.get("valor", 0) or 0
-    descripcion = (item.get("descripcion") or "").strip()
+        codigo = item.get("codigo")
+        valor = item.get("valor", 0) or 0
+        descripcion = (item.get("descripcion") or "").strip()
 
-    item_name = codigo_a_qb_id.get(codigo)
-    if not item_name:
-        print(f"❌ Código no mapeado: {codigo}")
-        continue
+        if not codigo:
+            print("⚠️ Item sin 'codigo' → ignorado:", item)
+            continue
 
-    item_id = obtener_item_id_desde_nombre(item_name)
-    if not item_id:
-        print(f"⚠️ Ítem QuickBooks no encontrado: {item_name}")
-        continue
+        item_name = codigo_a_qb_id.get(codigo)
+        if not item_name:
+            print(f"❌ Código no mapeado: {codigo}")
+            continue
 
-    line_items.append({
-        "DetailType": "SalesItemLineDetail",
-        "Amount": float(valor),
-        "Description": descripcion,               # 👈 VA A QUICKBOOKS
-        "SalesItemLineDetail": {
-            "ItemRef": {"value": item_id, "name": item_name},
-            "UnitPrice": float(valor),
-            "Qty": 1
-        }
-    })
+        item_id = obtener_item_id_desde_nombre(item_name)
+        if not item_id:
+            print(f"⚠️ Ítem QuickBooks no encontrado: {item_name} (codigo {codigo})")
+            continue
+
+        print(f"QB line → {codigo} | {valor} | desc='{descripcion[:80]}'")
+
+        line_items.append({
+            "DetailType": "SalesItemLineDetail",
+            "Amount": float(valor),
+            "Description": descripcion,
+            "SalesItemLineDetail": {
+                "ItemRef": {"value": item_id, "name": item_name},
+                "UnitPrice": float(valor),
+                "Qty": 1
+            }
+        })
 
     if not line_items:
         print("⚠️ No se generó ningún ítem válido para la factura.")
