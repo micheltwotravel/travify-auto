@@ -223,7 +223,10 @@ async def slack_events(req: Request):
         print("⚠️ Evento recibido sin archivo.")
         return {"ok": True}
 
-    file_url = file_info["url_private_download"]
+    file_url = file_info.get("url_private_download") or file_info.get("url_private")
+if not file_url:
+    print("⚠️ Evento con archivo pero sin URL descargable:", file_info)
+    return {"ok": True}
 
     # Descargar archivo
     async with aiohttp.ClientSession(headers={
@@ -330,6 +333,7 @@ async def facturar(request: Request):
         print("❌ Error en /facturar:", e)
         return {"ok": False, "error": str(e)}
         
+
 
 
 
