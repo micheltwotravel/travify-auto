@@ -177,7 +177,7 @@ async def quickbooks_callback(request: Request):
 
     print("📦 TOKENS:", token_data)
 
-    with open("quickbooks_token.json", "w") as f:
+    with open("/etc/secrets/quickbooks_token.json", "w") as f:
         json.dump(token_data, f)
 
     return {"ok": True, "msg": "Tokens guardados exitosamente"}
@@ -224,9 +224,9 @@ async def slack_events(req: Request):
         return {"ok": True}
 
     file_url = file_info.get("url_private_download") or file_info.get("url_private")
-if not file_url:
-    print("⚠️ Evento con archivo pero sin URL descargable:", file_info)
-    return {"ok": True}
+    if not file_url:
+        print("⚠️ Evento con archivo pero sin URL descargable:", file_info)
+        return {"ok": True}
 
     # Descargar archivo
     async with aiohttp.ClientSession(headers={
@@ -241,13 +241,17 @@ if not file_url:
 
             if not pdf_data.startswith(b'%PDF'):
                 print("❌ El archivo descargado NO es un PDF válido.")
-                await session.post("https://slack.com/api/chat.postMessage", headers={
-                    "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-                    "Accept": "application/json; charset=utf-8"
-                }, json={
-                    "channel": channel_id,
-                    "text": "❌ El archivo subido no es un PDF válido. Por favor intenta nuevamente con otro archivo."
-                })
+                await session.post(
+                    "https://slack.com/api/chat.postMessage",
+                    headers={
+                        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                        "Accept": "application/json; charset=utf-8"
+                    },
+                    json={
+                        "channel": channel_id,
+                        "text": "❌ El archivo subido no es un PDF válido. Por favor intenta nuevamente con otro archivo."
+                    }
+                )
                 return {"error": "Archivo no es PDF"}
 
             # Procesar PDF → Google Sheets + QuickBooks
@@ -260,13 +264,17 @@ if not file_url:
             resultado = crear_invoice_en_quickbooks(data)
 
             if not resultado:
-                await session.post("https://slack.com/api/chat.postMessage", headers={
-                    "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-                    "Accept": "application/json; charset=utf-8"
-                }, json={
-                    "channel": channel_id,
-                    "text": "⚠️ No se pudo generar la factura. Verifica si QuickBooks está conectado correctamente."
-                })
+                await session.post(
+                    "https://slack.com/api/chat.postMessage",
+                    headers={
+                        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                        "Accept": "application/json; charset=utf-8"
+                    },
+                    json={
+                        "channel": channel_id,
+                        "text": "⚠️ No se pudo generar la factura. Verifica si QuickBooks está conectado correctamente."
+                    }
+                )
                 return {"error": "Factura no generada"}
 
             nombre = facturacion.get("1A", "Cliente desconocido")
@@ -280,7 +288,10 @@ if not file_url:
             ])
 
             invoice_id = resultado.get("invoice_id")
-            factura_url = f"https://app.qbo.intuit.com/app/invoice?txnId={invoice_id}" if invoice_id else "No disponible"
+            factura_url = (
+                f"https://app.qbo.intuit.com/app/invoice?txnId={invoice_id}"
+                if invoice_id else "No disponible"
+            )
 
             mensaje = (
                 f"🧾 Factura generada en QuickBooks\n"
@@ -291,13 +302,17 @@ if not file_url:
                 f"✅ Enviado al equipo de finanzas."
             )
 
-            await session.post("https://slack.com/api/chat.postMessage", headers={
-                "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-                "Accept": "application/json; charset=utf-8"
-            }, json={
-                "channel": channel_id,
-                "text": mensaje
-            })
+            await session.post(
+                "https://slack.com/api/chat.postMessage",
+                headers={
+                    "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                    "Accept": "application/json; charset=utf-8"
+                },
+                json={
+                    "channel": channel_id,
+                    "text": mensaje
+                }
+            )
             return {"ok": True}
 
 
@@ -333,6 +348,7 @@ async def facturar(request: Request):
         print("❌ Error en /facturar:", e)
         return {"ok": False, "error": str(e)}
         
+
 
 
 
