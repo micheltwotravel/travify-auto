@@ -148,27 +148,42 @@ def obtener_item_id_desde_nombre(nombre):
     access_token = tokens["access_token"]
     realm_id = tokens["realm_id"]
     base_url = f"https://quickbooks.api.intuit.com/v3/company/{realm_id}"
-    
+
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Accept": "application/json"
     }
 
-    query = f"SELECT Id, Name FROM Item WHERE Name = '{nombre}'"
-    url = f"{base_url}/query?query={quote(query)}"
+    nombre_escaped = nombre.replace("'", r"\'")
 
-    r = requests.get(url, headers=headers)
-    if r.status_code == 200:
-        items = r.json().get("QueryResponse", {}).get("Item", [])
-        if items:
-            return items[0]["Id"]
+    queries = [
+        f"SELECT Id, Name, FullyQualifiedName FROM Item WHERE FullyQualifiedName = '{nombre_escaped}'",
+        f"SELECT Id, Name, FullyQualifiedName FROM Item WHERE Name = '{nombre_escaped}'"
+    ]
+
+    for query in queries:
+        url = f"{base_url}/query?query={quote(query)}"
+        r = requests.get(url, headers=headers)
+
+        if r.status_code == 401 or "AuthenticationFailed" in r.text:
+            print("🔁 Token expirado consultando item. Refrescando...")
+            tokens = refrescar_token()
+            if not tokens:
+                return None
+            headers["Authorization"] = f"Bearer {tokens['access_token']}"
+            r = requests.get(url, headers=headers)
+
+        if r.status_code == 200:
+            items = r.json().get("QueryResponse", {}).get("Item", [])
+            if items:
+                item = items[0]
+                print(f"✅ Ítem encontrado: Name={item.get('Name')} | FQN={item.get('FullyQualifiedName')} | Id={item.get('Id')}")
+                return item["Id"]
         else:
-            print(f"⚠️ No se encontró el ítem '{nombre}' en QuickBooks.")
-    else:
-        print(f"❌ Error al consultar el ítem '{nombre}':", r.text)
+            print(f"❌ Error al consultar el ítem '{nombre}': {r.text}")
 
+    print(f"⚠️ No se encontró el ítem '{nombre}' en QuickBooks.")
     return None
-
 
 def crear_invoice_api_call(invoice_data, base_url, headers):
     r = requests.post(f"{base_url}/invoice", headers=headers, json=invoice_data)
