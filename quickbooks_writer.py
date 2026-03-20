@@ -154,14 +154,17 @@ def obtener_item_id_desde_nombre(nombre):
         "Accept": "application/json"
     }
 
+    nombre = nombre.strip()
     nombre_escaped = nombre.replace("'", r"\'")
 
-    queries = [
-        f"SELECT Id, Name, FullyQualifiedName FROM Item WHERE FullyQualifiedName = '{nombre_escaped}'",
-        f"SELECT Id, Name, FullyQualifiedName FROM Item WHERE Name = '{nombre_escaped}'"
-    ]
+    # 🔥 intento 1: FullyQualifiedName (clave para jerarquías)
+    query_fqn = f"SELECT Id, Name, FullyQualifiedName FROM Item WHERE FullyQualifiedName = '{nombre_escaped}'"
 
-    for query in queries:
+    # 🔥 intento 2: Name (fallback)
+    nombre_simple = nombre.split(":")[-1]
+    query_name = f"SELECT Id, Name, FullyQualifiedName FROM Item WHERE Name = '{nombre_simple}'"
+
+    for query in [query_fqn, query_name]:
         url = f"{base_url}/query?query={quote(query)}"
         r = requests.get(url, headers=headers)
 
@@ -177,12 +180,13 @@ def obtener_item_id_desde_nombre(nombre):
             items = r.json().get("QueryResponse", {}).get("Item", [])
             if items:
                 item = items[0]
-                print(f"✅ Ítem encontrado: Name={item.get('Name')} | FQN={item.get('FullyQualifiedName')} | Id={item.get('Id')}")
+                print(f"✅ MATCH → {nombre} → ID={item['Id']}")
                 return item["Id"]
-        else:
-            print(f"❌ Error al consultar el ítem '{nombre}': {r.text}")
 
-    print(f"⚠️ No se encontró el ítem '{nombre}' en QuickBooks.")
+        else:
+            print(f"❌ Error QuickBooks: {r.text}")
+
+    print(f"❌ NO MATCH para: {nombre}")
     return None
 
 def crear_invoice_api_call(invoice_data, base_url, headers):
