@@ -170,18 +170,17 @@ async def quickbooks_callback(request: Request):
     tokens = response.json()
 
     token_data = {
-        "access_token": tokens.get("access_token"),
-        "refresh_token": tokens.get("refresh_token"),
-        "realm_id": realm_id
-    }
+    "access_token": tokens.get("access_token"),
+    "refresh_token": tokens.get("refresh_token"),
+    "realm_id": realm_id
+}
 
-    # 👇 ESTA ES LA LÍNEA CLAVE
-    with open("/tmp/quickbooks_token.json", "w") as f:
-        json.dump(token_data, f)
+with open("/tmp/quickbooks_token.json", "w") as f:
+    json.dump(token_data, f)
 
-    print("✅ Tokens guardados en /tmp/quickbooks_token.json")
+print("✅ Tokens guardados en /tmp/quickbooks_token.json")
 
-    return token_data
+return token_data
     
 import asyncio
 import aiohttp
