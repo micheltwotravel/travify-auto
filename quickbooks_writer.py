@@ -16,18 +16,26 @@ def cargar_tokens():
         print("⚠️ No se encontró quickbooks_token.json")
         return None
 
+def guardar_tokens(tokens):
+    with open("/tmp/quickbooks_token.json", "w") as f:
+        json.dump(tokens, f)
+def guardar_tokens(tokens):
+    with open("/tmp/quickbooks_token.json", "w") as f:
+        json.dump(tokens, f)
 
 def refrescar_token():
-    try:
-        with open("/etc/secrets/quickbooks_token.json", "r") as f:
-            tokens = json.load(f)
-    except FileNotFoundError:
-        print("❌ No hay archivo de tokens en /etc/secrets/")
+    tokens = cargar_tokens()
+    if not tokens:
+        print("❌ No hay tokens cargados para refrescar")
         return None
 
     refresh_token = tokens.get("refresh_token")
     client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
     client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
+
+    if not refresh_token:
+        print("❌ No existe refresh_token")
+        return None
 
     token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
     headers = {
@@ -41,18 +49,24 @@ def refrescar_token():
     }
 
     r = requests.post(token_url, headers=headers, auth=auth, data=data)
+
     if r.status_code != 200:
         print("❌ Falló el refresh:", r.text)
         return None
 
     nuevos_tokens = r.json()
+
     tokens["access_token"] = nuevos_tokens.get("access_token")
-    tokens["refresh_token"] = nuevos_tokens.get("refresh_token")
+    if nuevos_tokens.get("refresh_token"):
+        tokens["refresh_token"] = nuevos_tokens.get("refresh_token")
 
-    with open("/tmp/quickbooks_token.json", "w") as f:
-        json.dump(tokens, f)
+    if nuevos_tokens.get("x_refresh_token_expires_in"):
+        tokens["x_refresh_token_expires_in"] = nuevos_tokens.get("x_refresh_token_expires_in")
+    if nuevos_tokens.get("expires_in"):
+        tokens["expires_in"] = nuevos_tokens.get("expires_in")
 
-    print("🔁 Token actualizado exitosamente (guardado en /tmp)")
+    guardar_tokens(tokens)
+    print("🔁 Token actualizado exitosamente")
     return tokens
 
 
