@@ -136,6 +136,7 @@ def extraer_texto_pdf_bytes(pdf_bytes):
 
 @app.api_route("/callback", methods=["GET", "POST"])
 async def quickbooks_callback(request: Request):
+
     if request.method == "GET":
         params = request.query_params
     else:
@@ -164,20 +165,21 @@ async def quickbooks_callback(request: Request):
 
     response = requests.post(token_url, headers=headers, auth=auth, data=data)
 
-if response.status_code != 200:
-    return {"error": "Failed to exchange token", "details": response.text}
+    if response.status_code != 200:
+        return {"error": "Failed to exchange token", "details": response.text}
 
-tokens = response.json()
+    tokens = response.json()
 
-token_data = {
-    "access_token": tokens.get("access_token"),
-    "refresh_token": tokens.get("refresh_token"),
-    "realm_id": realm_id
-}
+    token_data = {
+        "access_token": tokens.get("access_token"),
+        "refresh_token": tokens.get("refresh_token"),
+        "realm_id": realm_id
+    }
 
-with open("quickbooks_token.json", "w") as f:
-    json.dump(token_data, f)
-    print("✅ Tokens guardados en /tmp/quickbooks_token.json")
+    with open("quickbooks_token.json", "w") as f:
+        json.dump(token_data, f)
+
+    print("✅ Tokens guardados")
 
     return token_data
     
