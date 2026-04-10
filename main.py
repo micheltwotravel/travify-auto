@@ -169,15 +169,14 @@ if response.status_code != 200:
 
 tokens = response.json()
 
-    token_data = {
-        "access_token": tokens.get("access_token"),
-        "refresh_token": tokens.get("refresh_token"),
-        "realm_id": realm_id
-    }
+token_data = {
+    "access_token": tokens.get("access_token"),
+    "refresh_token": tokens.get("refresh_token"),
+    "realm_id": realm_id
+}
 
-    with open("quickbooks_token.json", "w") as f:
+with open("quickbooks_token.json", "w") as f:
     json.dump(token_data, f)
-
     print("✅ Tokens guardados en /tmp/quickbooks_token.json")
 
     return token_data
