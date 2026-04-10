@@ -175,8 +175,8 @@ tokens = response.json()
         "realm_id": realm_id
     }
 
-    with open("/tmp/quickbooks_token.json", "w") as f:
-        json.dump(token_data, f)
+    with open("quickbooks_token.json", "w") as f:
+    json.dump(token_data, f)
 
     print("✅ Tokens guardados en /tmp/quickbooks_token.json")
 
