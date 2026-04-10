@@ -164,10 +164,10 @@ async def quickbooks_callback(request: Request):
 
     response = requests.post(token_url, headers=headers, auth=auth, data=data)
 
-    if response.status_code != 200:
-        return {"error": "Failed to exchange token", "details": response.text}
+if response.status_code != 200:
+    return {"error": "Failed to exchange token", "details": response.text}
 
-        tokens = response.json()
+tokens = response.json()
 
     token_data = {
         "access_token": tokens.get("access_token"),
