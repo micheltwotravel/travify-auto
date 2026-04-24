@@ -87,7 +87,7 @@ def extraer_codigos_y_factura(texto):
     if line:
         prev_nonempty = line
 
-    # 🔥 FORMATO NUEVO (IMPORTANTE)
+    # 🔥 FORMATO NUEVO (Brian / universal)
     m_desc_first = re.search(
         r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<desc>[^\]]+)\]\s*\[(?P<val>\d+)\]',
         line
@@ -101,24 +101,27 @@ def extraer_codigos_y_factura(texto):
         })
         continue
 
-    # 👇 TU CÓDIGO ORIGINAL
+    # 👇 FORMATO ORIGINAL
     m = re.search(
         r'^(?P<head>.*?)?\s*\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\](?:\s*\[(?P<desc>[^\]]+)\])?',
         line
     )
-        if m:
-            code = m.group('code')
-            val  = m.group('val')
-            desc = m.group('desc')
-            if not desc:
-                head = (m.group('head') or '').strip(' -—:·')
-                desc = head if head else prev_nonempty.strip(' -—:·')
-            codigos.append({
-                "codigo": code,
-                "valor": int(val) if val else None,
-                "descripcion": (desc or "").strip()
-            })
-            continue
+
+    if m:
+        code = m.group('code')
+        val = m.group('val')
+        desc = m.group('desc')
+
+        if not desc:
+            head = (m.group('head') or '').strip(' -—:·')
+            desc = head if head else prev_nonempty.strip(' -—:·')
+
+        codigos.append({
+            "codigo": code,
+            "valor": int(val) if val else None,
+            "descripcion": (desc or "").strip()
+        })
+        continue
 
         # Fallback: si aparecen [CODE][VAL] sin head en la línea
         for mm in re.finditer(r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\]', line):
