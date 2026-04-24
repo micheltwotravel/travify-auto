@@ -195,7 +195,7 @@ async def quickbooks_callback(request: Request):
         "realm_id": realm_id
     }
 
-    with open("quickbooks_token.json", "w") as f:
+    with open("/tmp/quickbooks_token.json", "w") as f:
         json.dump(token_data, f)
 
     print("✅ Tokens guardados")
