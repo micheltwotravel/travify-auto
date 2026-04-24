@@ -84,28 +84,28 @@ def extraer_codigos_y_factura(texto):
     prev_nonempty = ""
 
     for line in lines:
-        if line:
-            prev_nonempty = line
-            # 🔥 NUEVO FORMATO UNIVERSAL
-# [CODIGO][DESCRIPCION][PRECIO]
-m_desc_first = re.search(
-    r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<desc>[^\]]+)\]\s*\[(?P<val>\d+)\]',
-    line
-)
+    if line:
+        prev_nonempty = line
 
-if m_desc_first:
-    codigos.append({
-        "codigo": m_desc_first.group("code"),
-        "valor": int(m_desc_first.group("val")),
-        "descripcion": m_desc_first.group("desc").strip()
-    })
-    continue
+    # 🔥 FORMATO NUEVO (IMPORTANTE)
+    m_desc_first = re.search(
+        r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<desc>[^\]]+)\]\s*\[(?P<val>\d+)\]',
+        line
+    )
 
-        # Caso con 2 o 3 corchetes en la MISMA línea
-        m = re.search(
-            r'^(?P<head>.*?)?\s*\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\](?:\s*\[(?P<desc>[^\]]+)\])?',
-            line
-        )
+    if m_desc_first:
+        codigos.append({
+            "codigo": m_desc_first.group("code"),
+            "valor": int(m_desc_first.group("val")),
+            "descripcion": m_desc_first.group("desc").strip()
+        })
+        continue
+
+    # 👇 TU CÓDIGO ORIGINAL
+    m = re.search(
+        r'^(?P<head>.*?)?\s*\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\](?:\s*\[(?P<desc>[^\]]+)\])?',
+        line
+    )
         if m:
             code = m.group('code')
             val  = m.group('val')
