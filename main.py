@@ -76,6 +76,7 @@ def extraer_codigos_y_factura(texto):
       [CODIGO][PRECIO]
     """
     codigos = []
+    codigos_vistos = set()
     facturacion = {}
 
     lines = [l.strip() for l in texto.splitlines()]
@@ -85,23 +86,29 @@ def extraer_codigos_y_factura(texto):
         if line:
             prev_nonempty = line
 
-        # FORMATO NUEVO:
-        # [CODIGO][DESCRIPCION][PRECIO]
+        # 🔥 FORMATO NUEVO
         m_desc_first = re.search(
             r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<desc>[^\]]+)\]\s*\[(?P<val>\d+)\]',
             line
         )
 
         if m_desc_first:
-            codigos.append({
-                "codigo": m_desc_first.group("code"),
-                "valor": int(m_desc_first.group("val")),
-                "descripcion": m_desc_first.group("desc").strip()
-            })
+            key = (
+                m_desc_first.group("code"),
+                int(m_desc_first.group("val")),
+                m_desc_first.group("desc").strip()
+            )
+
+            if key not in codigos_vistos:
+                codigos_vistos.add(key)
+                codigos.append({
+                    "codigo": m_desc_first.group("code"),
+                    "valor": int(m_desc_first.group("val")),
+                    "descripcion": m_desc_first.group("desc").strip()
+                })
             continue
 
-        # FORMATO ORIGINAL:
-        # texto [CODIGO][PRECIO][DESCRIPCION opcional]
+        # 🔹 FORMATO ORIGINAL
         m = re.search(
             r'^(?P<head>.*?)?\s*\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\](?:\s*\[(?P<desc>[^\]]+)\])?',
             line
@@ -116,23 +123,40 @@ def extraer_codigos_y_factura(texto):
                 head = (m.group('head') or '').strip(' -—:·')
                 desc = head if head else prev_nonempty.strip(' -—:·')
 
-            codigos.append({
-                "codigo": code,
-                "valor": int(val) if val else None,
-                "descripcion": (desc or "").strip()
-            })
+            key = (
+                code,
+                int(val) if val else None,
+                (desc or "").strip()
+            )
+
+            if key not in codigos_vistos:
+                codigos_vistos.add(key)
+                codigos.append({
+                    "codigo": code,
+                    "valor": int(val) if val else None,
+                    "descripcion": (desc or "").strip()
+                })
             continue
 
-        # FALLBACK:
-        # [CODIGO][PRECIO]
+        # 🔹 FALLBACK
         for mm in re.finditer(r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\]', line):
-            codigos.append({
-                "codigo": mm.group('code'),
-                "valor": int(mm.group('val')),
-                "descripcion": prev_nonempty.strip(' -—:·') or ""
-            })
+            desc = prev_nonempty.strip(' -—:·') or ""
 
-    # Campos [1A]..[4A]
+            key = (
+                mm.group('code'),
+                int(mm.group('val')),
+                desc
+            )
+
+            if key not in codigos_vistos:
+                codigos_vistos.add(key)
+                codigos.append({
+                    "codigo": mm.group('code'),
+                    "valor": int(mm.group('val')),
+                    "descripcion": desc
+                })
+
+    # 🔹 DATOS DE FACTURACIÓN
     for campo, defecto in [
         ("1A", "Cliente desconocido"),
         ("2A", "correo@ejemplo.com"),
