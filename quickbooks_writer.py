@@ -38,37 +38,42 @@ def refrescar_token():
         return None
 
     token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-    auth = (client_id, client_secret)
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token
-    }
 
-    r = requests.post(token_url, headers=headers, auth=auth, data=data)
+    r = requests.post(
+        token_url,
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        auth=(client_id, client_secret),
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token
+        }
+    )
 
     if r.status_code != 200:
         print("❌ Falló el refresh:", r.text)
+        print("🔴 Debes reconectar QuickBooks en /connect")
         return None
 
     nuevos_tokens = r.json()
 
-    tokens["access_token"] = nuevos_tokens.get("access_token")
-    if nuevos_tokens.get("refresh_token"):
-        tokens["refresh_token"] = nuevos_tokens.get("refresh_token")
+    tokens["access_token"] = nuevos_tokens["access_token"]
 
-    if nuevos_tokens.get("x_refresh_token_expires_in"):
-        tokens["x_refresh_token_expires_in"] = nuevos_tokens.get("x_refresh_token_expires_in")
-    if nuevos_tokens.get("expires_in"):
-        tokens["expires_in"] = nuevos_tokens.get("expires_in")
+    # MUY IMPORTANTE:
+    # QuickBooks a veces manda refresh_token nuevo.
+    # Si lo manda, hay que reemplazarlo.
+    if nuevos_tokens.get("refresh_token"):
+        tokens["refresh_token"] = nuevos_tokens["refresh_token"]
+
+    tokens["expires_in"] = nuevos_tokens.get("expires_in")
+    tokens["x_refresh_token_expires_in"] = nuevos_tokens.get("x_refresh_token_expires_in")
 
     guardar_tokens(tokens)
-    print("🔁 Token actualizado exitosamente")
-    return tokens
 
+    print("✅ Token refrescado y guardado automáticamente")
+    return tokens
 
 def buscar_cliente_por_email(email, base_url, headers):
     query = f"SELECT Id, DisplayName FROM Customer WHERE PrimaryEmailAddr = '{email}'"
