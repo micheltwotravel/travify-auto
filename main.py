@@ -123,13 +123,13 @@ def extraer_codigos_y_factura(texto):
         })
         continue
 
-        # Fallback: si aparecen [CODE][VAL] sin head en la línea
-        for mm in re.finditer(r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\]', line):
-            codigos.append({
-                "codigo": mm.group('code'),
-                "valor": int(mm.group('val')),
-                "descripcion": prev_nonempty.strip(' -—:·') or ""
-            })
+    # Fallback
+    for mm in re.finditer(r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<val>\d+)\]', line):
+        codigos.append({
+            "codigo": mm.group('code'),
+            "valor": int(mm.group('val')),
+            "descripcion": prev_nonempty.strip(' -—:·') or ""
+        })
 
     # Campos [1A]..[4A]
     for campo, defecto in [("1A","Cliente desconocido"),
