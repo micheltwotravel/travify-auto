@@ -86,6 +86,20 @@ def extraer_codigos_y_factura(texto):
     for line in lines:
         if line:
             prev_nonempty = line
+            # 🔥 NUEVO FORMATO UNIVERSAL
+# [CODIGO][DESCRIPCION][PRECIO]
+m_desc_first = re.search(
+    r'\[(?P<code>[A-Z]{2}\d{3})\]\s*\[(?P<desc>[^\]]+)\]\s*\[(?P<val>\d+)\]',
+    line
+)
+
+if m_desc_first:
+    codigos.append({
+        "codigo": m_desc_first.group("code"),
+        "valor": int(m_desc_first.group("val")),
+        "descripcion": m_desc_first.group("desc").strip()
+    })
+    continue
 
         # Caso con 2 o 3 corchetes en la MISMA línea
         m = re.search(
